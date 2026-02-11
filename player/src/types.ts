@@ -40,6 +40,7 @@ export interface TimelineEvent {
   note: number        // MIDI音高
   velocity: number    // 力度
   instrumentId: number
+  chordNotes?: { note: number; velocity: number; instrumentId: number }[]
 }
 
 /** 小球路径关键帧 */

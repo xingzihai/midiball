@@ -1,0 +1,283 @@
+{
+  "meta": {
+    "title": "Twinkle Twinkle",
+    "bpm": 120.0,
+    "totalTime": 7500.0,
+    "mapBounds": {
+      "minX": -847.38,
+      "maxX": 332.64,
+      "minY": -783.52,
+      "maxY": 220.06
+    }
+  },
+  "assets": {
+    "instruments": [
+      {
+        "id": 0,
+        "name": "Piano",
+        "color": "#4FC3F7"
+      }
+    ]
+  },
+  "timeline": [
+    {
+      "id": 1,
+      "time": 0.0,
+      "type": "WALL",
+      "pos": {
+        "x": 14.91,
+        "y": 20.06
+      },
+      "rotation": 0.0,
+      "note": 60,
+      "velocity": 80,
+      "instrumentId": 0
+    },
+    {
+      "id": 2,
+      "time": 500.0,
+      "type": "WALL",
+      "pos": {
+        "x": 132.64,
+        "y": -216.2
+      },
+      "rotation": -90.0,
+      "note": 60,
+      "velocity": 80,
+      "instrumentId": 0
+    },
+    {
+      "id": 3,
+      "time": 1000.0,
+      "type": "WALL",
+      "pos": {
+        "x": 22.4,
+        "y": -444.47
+      },
+      "rotation": 0.0,
+      "note": 67,
+      "velocity": 80,
+      "instrumentId": 0
+    },
+    {
+      "id": 4,
+      "time": 1500.0,
+      "type": "WALL",
+      "pos": {
+        "x": -106.78,
+        "y": -232.98
+      },
+      "rotation": -90.0,
+      "note": 67,
+      "velocity": 80,
+      "instrumentId": 0
+    },
+    {
+      "id": 5,
+      "time": 2000.0,
+      "type": "WALL",
+      "pos": {
+        "x": -146.04,
+        "y": 17.45
+      },
+      "rotation": 0.0,
+      "note": 69,
+      "velocity": 80,
+      "instrumentId": 0
+    },
+    {
+      "id": 6,
+      "time": 2500.0,
+      "type": "WALL",
+      "pos": {
+        "x": -133.61,
+        "y": -371.1
+      },
+      "rotation": -90.0,
+      "note": 69,
+      "velocity": 80,
+      "instrumentId": 0
+    },
+    {
+      "id": 7,
+      "time": 3000.0,
+      "type": "WALL",
+      "pos": {
+        "x": -291.8,
+        "y": -583.52
+      },
+      "rotation": 0.0,
+      "note": 67,
+      "velocity": 80,
+      "instrumentId": 0
+    },
+    {
+      "id": 8,
+      "time": 4000.0,
+      "type": "WALL",
+      "pos": {
+        "x": -647.38,
+        "y": -190.92
+      },
+      "rotation": -90.0,
+      "note": 65,
+      "velocity": 80,
+      "instrumentId": 0
+    },
+    {
+      "id": 9,
+      "time": 4500.0,
+      "type": "WALL",
+      "pos": {
+        "x": -435.73,
+        "y": -41.35
+      },
+      "rotation": 0.0,
+      "note": 65,
+      "velocity": 80,
+      "instrumentId": 0
+    },
+    {
+      "id": 10,
+      "time": 5000.0,
+      "type": "WALL",
+      "pos": {
+        "x": -271.46,
+        "y": -234.42
+      },
+      "rotation": -90.0,
+      "note": 64,
+      "velocity": 80,
+      "instrumentId": 0
+    },
+    {
+      "id": 11,
+      "time": 5500.0,
+      "type": "WALL",
+      "pos": {
+        "x": -404.77,
+        "y": -443.33
+      },
+      "rotation": 0.0,
+      "note": 64,
+      "velocity": 80,
+      "instrumentId": 0
+    },
+    {
+      "id": 12,
+      "time": 6000.0,
+      "type": "WALL",
+      "pos": {
+        "x": -617.68,
+        "y": -305.75
+      },
+      "rotation": -90.0,
+      "note": 62,
+      "velocity": 80,
+      "instrumentId": 0
+    },
+    {
+      "id": 13,
+      "time": 6500.0,
+      "type": "WALL",
+      "pos": {
+        "x": -634.19,
+        "y": -42.3
+      },
+      "rotation": 0.0,
+      "note": 62,
+      "velocity": 80,
+      "instrumentId": 0
+    },
+    {
+      "id": 14,
+      "time": 7000.0,
+      "type": "WALL",
+      "pos": {
+        "x": -443.1,
+        "y": -245.92
+      },
+      "rotation": -90.0,
+      "note": 60,
+      "velocity": 80,
+      "instrumentId": 0
+    }
+  ],
+  "ballPath": [
+    {
+      "time": 0,
+      "x": 0.0,
+      "y": 0.0
+    },
+    {
+      "time": 0.0,
+      "x": 14.91,
+      "y": 20.06
+    },
+    {
+      "time": 500.0,
+      "x": 132.64,
+      "y": -216.2
+    },
+    {
+      "time": 1000.0,
+      "x": 22.4,
+      "y": -444.47
+    },
+    {
+      "time": 1500.0,
+      "x": -106.78,
+      "y": -232.98
+    },
+    {
+      "time": 2000.0,
+      "x": -146.04,
+      "y": 17.45
+    },
+    {
+      "time": 2500.0,
+      "x": -133.61,
+      "y": -371.1
+    },
+    {
+      "time": 3000.0,
+      "x": -291.8,
+      "y": -583.52
+    },
+    {
+      "time": 4000.0,
+      "x": -647.38,
+      "y": -190.92
+    },
+    {
+      "time": 4500.0,
+      "x": -435.73,
+      "y": -41.35
+    },
+    {
+      "time": 5000.0,
+      "x": -271.46,
+      "y": -234.42
+    },
+    {
+      "time": 5500.0,
+      "x": -404.77,
+      "y": -443.33
+    },
+    {
+      "time": 6000.0,
+      "x": -617.68,
+      "y": -305.75
+    },
+    {
+      "time": 6500.0,
+      "x": -634.19,
+      "y": -42.3
+    },
+    {
+      "time": 7000.0,
+      "x": -443.1,
+      "y": -245.92
+    }
+  ]
+}

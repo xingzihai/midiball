@@ -28,9 +28,12 @@ def main():
         print('错误: MIDI文件中未找到任何音符')
         sys.exit(1)
     
-    print(f'[2/3] 规划路径（回溯+动态速度）...')
+    print(f'[2/3] 规划路径（回溯+动态速度+和弦分光镜）...')
     walls, ball_path = plan_paths(notes)
+    splitters = sum(1 for w in walls if w.get('type') == 'SPLITTER')
+    mergers = sum(1 for w in walls if w.get('type') == 'MERGER')
     print(f'      生成 {len(walls)} 面墙体, {len(ball_path)} 个路径关键帧')
+    print(f'      分光镜={splitters}, 汇光镜={mergers}')
     
     print(f'[3/3] 输出文件: {output}')
     write_mdbl(walls, ball_path, meta, instruments, output)

@@ -60,6 +60,12 @@ export class AudioEngine {
   private _playNote(event: TimelineEvent, time: number) {
     const noteName = Tone.Frequency(event.note, 'midi').toNote()
     const vel = event.velocity / 127
-    this.synth.triggerAttackRelease(noteName, '8n', time, vel)
+    this.synth.triggerAttackRelease(noteName, '8n', time, vel)// SPLITTER: 同时播放和弦内所有附加音符
+    if (event.type === 'SPLITTER' && event.chordNotes) {
+      for (const cn of event.chordNotes) {
+        const cnName = Tone.Frequency(cn.note, 'midi').toNote()
+        this.synth.triggerAttackRelease(cnName, '8n', time, cn.velocity / 127)
+      }
+    }
   }
 }
