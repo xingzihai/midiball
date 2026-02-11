@@ -32,6 +32,10 @@ export class AudioEngine {
     const noteName = Tone.Frequency(event.note, 'midi').toNote()
     const vel = event.velocity / 127
     this.synth.triggerAttackRelease(noteName, '8n', undefined, vel)
+  }/** 子球撞墙时实时触发音符 */
+  triggerChildNote(note: number, velocity: number) {
+    const noteName = Tone.Frequency(note, 'midi').toNote()
+    this.synth.triggerAttackRelease(noteName, '8n', undefined, velocity / 127)
   }
 
   async start() {
@@ -55,6 +59,11 @@ export class AudioEngine {
   /** 获取当前播放时间(ms) */
   getCurrentTimeMs(): number {
     return Tone.getTransport().seconds * 1000
+  }/** 跳转到指定时间(ms) */
+  seekTo(timeMs: number) {
+    const wasPlaying = Tone.getTransport().state === 'started'
+    Tone.getTransport().seconds = timeMs / 1000
+    if (!wasPlaying) Tone.getTransport().pause()
   }
 
   private _playNote(event: TimelineEvent, time: number) {

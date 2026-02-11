@@ -32,8 +32,10 @@ def main():
     walls, ball_path = plan_paths(notes)
     splitters = sum(1 for w in walls if w.get('type') == 'SPLITTER')
     mergers = sum(1 for w in walls if w.get('type') == 'MERGER')
+    child_walls = sum(len(cp['walls']) for w in walls
+                      for cp in w.get('childPaths', []))
     print(f'      生成 {len(walls)} 面墙体, {len(ball_path)} 个路径关键帧')
-    print(f'      分光镜={splitters}, 汇光镜={mergers}')
+    print(f'      分光镜={splitters}, 汇光镜={mergers}, 子墙体={child_walls}')
     
     print(f'[3/3] 输出文件: {output}')
     write_mdbl(walls, ball_path, meta, instruments, output)

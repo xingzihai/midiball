@@ -5,6 +5,7 @@ import time
 import bisect
 from collision_detector import SpatialGrid, check_path_collision_grid, check_wall_segment_collision_grid
 from chord_grouper import group_notes, compute_merger_targets
+from child_path_planner import plan_child_paths
 
 V_MIN, V_MAX = 150.0, 600.0
 NPS_WINDOW, NPS_MAX = 2.0, 8.0
@@ -13,6 +14,7 @@ MIN_WALL_DIST = 25.0
 MIN_DISTANCE = 25.0
 MAX_RETRIES, BT_PER_WALL = 30, 15
 CHORD_THRESHOLD_MS = 50.0
+VIRTUAL_MERGE_MS = 500.0
 _SQ2 = np.sqrt(2) / 2
 
 
@@ -34,6 +36,8 @@ def _plan_with_groups(groups, speeds, merger_targets):
     pos = np.array([0.0, 0.0])
     d = np.array([_SQ2, _SQ2])
     tbt, widx, i = 0, 0, 0
+    sp_to_mg = _build_splitter_merger_map(groups, merger_targets)
+    splitter_dirs = {}
     t0 = time.time()
     while i < len(groups):
         g = groups[i]
@@ -48,14 +52,20 @@ def _plan_with_groups(groups, speeds, merger_targets):
         r = _try_place(pos, d, dist, widx, rep, grid, bp, wtype, cn)
         if r:
             pos, d = r
-            widx += 1; i += 1
+            if wtype == 'SPLITTER' and cn:
+                mg_idx = sp_to_mg.get(i, -1)
+                splitter_dirs[widx] = (d.copy(), i, mg_idx, cn)
+            widx += 1
+            i += 1
             if i % 200 == 0:
                 print(f'  progress: {i}/{len(groups)}, {time.time()-t0:.1f}s')
             continue
         max_bt = max(len(groups) * BT_PER_WALL, 200)
         if tbt < max_bt and len(grid.walls) > 0:
-            grid.remove_last(); bp.pop()
-            widx = len(grid.walls); i = widx
+            grid.remove_last()
+            bp.pop()
+            widx = len(grid.walls)
+            i = widx
             if i > 0:
                 wp = grid.walls[-1]['pos']
                 pos = np.array([wp['x'], wp['y']])
@@ -63,20 +73,82 @@ def _plan_with_groups(groups, speeds, merger_targets):
                 pos = np.array([0.0, 0.0])
             a = np.arctan2(d[1], d[0]) + random.uniform(-np.pi/2, np.pi/2)
             d = np.array([np.cos(a), np.sin(a)])
-            tbt += 1; continue
-        # 强制放置：尝试多个方向找到不碰撞的位置
+            tbt += 1
+            continue
         pos, d = _force_place_smart(pos, d, dist, widx, rep, grid, bp, wtype, cn)
-        widx += 1; i += 1
+        widx += 1
+        i += 1
+        # 直接扫描grid.walls找所有SPLITTER生成子路径（避免回溯导致splitter_dirs失效）
+    child_wall_count = _generate_all_child_paths_scan(grid, bp, speeds)
     elapsed = time.time() - t0
     col = _count_col(grid.walls)
     sp = sum(1 for w in grid.walls if w.get('type') == 'SPLITTER')
     mg = sum(1 for w in grid.walls if w.get('type') == 'MERGER')
-    print(f'  walls={len(grid.walls)} col={col} bt={tbt} splitters={sp} mergers={mg} time={elapsed:.1f}s')
+    print(f'  walls={len(grid.walls)} col={col} bt={tbt} splitters={sp} mergers={mg} '
+          f'child_walls={child_wall_count} time={elapsed:.1f}s')
     return grid.walls, bp
 
 
+def _generate_all_child_paths_scan(grid, bp, speeds):
+    """扫描grid.walls找所有SPLITTER，从ballPath推算飞行方向，生成子路径"""
+    total = 0
+    walls = grid.walls
+    n = len(walls)
+    for widx in range(n):
+        w = walls[widx]
+        if w.get('type') != 'SPLITTER' or not w.get('chordNotes'):
+            continue
+        sp_pos = np.array([w['pos']['x'], w['pos']['y']])
+        sp_time = w['time']
+        sp_id = w['id']
+        cn = w['chordNotes']
+        # 从ballPath推算飞行方向：前一个关键帧→当前位置
+        fly_dir = np.array([_SQ2, _SQ2])
+        for ki in range(len(bp) - 1):
+            if abs(bp[ki + 1]['time'] - sp_time) < 1:
+                prev = np.array([bp[ki]['x'], bp[ki]['y']])
+                diff = sp_pos - prev
+                norm = np.linalg.norm(diff)
+                if norm > 1:
+                    fly_dir = diff / norm
+                break
+        # 找下一个MERGER作为汇合点
+        mg_time = sp_time + VIRTUAL_MERGE_MS
+        mg_pos = _estimate_merger_pos(sp_pos, fly_dir, 300.0, VIRTUAL_MERGE_MS)
+        for j in range(widx + 1, min(widx + 50, n)):
+            if walls[j].get('type') == 'MERGER':
+                mg_time = walls[j]['time']
+                mg_pos = np.array([walls[j]['pos']['x'], walls[j]['pos']['y']])
+                break
+        dt = mg_time - sp_time
+        if dt <= 0:
+            continue
+        child_paths = plan_child_paths(
+            sp_pos, fly_dir, cn, mg_pos, sp_time, mg_time, sp_id, grid)
+        if child_paths:
+            w['childPaths'] = child_paths
+            total += sum(len(cp['walls']) for cp in child_paths)
+    return total
+
+
+def _build_splitter_merger_map(groups, merger_targets):
+    sp_mg = {}
+    for i, g in enumerate(groups):
+        if not g['is_chord']:
+            continue
+        for j in range(i + 1, len(groups)):
+            if j in merger_targets:
+                sp_mg[i] = j
+                break
+    return sp_mg
+
+
+def _estimate_merger_pos(sp_pos, direction, speed, dt):
+    dist = speed * dt / 1000.0
+    return sp_pos + direction * dist
+
+
 def _try_place(pos, d, dist, idx, note, grid, bp, wtype, cn):
-    """尝试放置：正交法线优先，然后随机方向+随机法线"""
     wp = pos + d * dist
     pcol = check_path_collision_grid(pos, d, dist, grid, WALL_LENGTH, MIN_WALL_DIST)
     if not pcol:
@@ -87,14 +159,12 @@ def _try_place(pos, d, dist, idx, note, grid, bp, wtype, cn):
                 grid.add(_mk_wall(idx, note, wp, wr, wtype, cn))
                 bp.append(_mk_kf(note['time_ms'], wp))
                 return wp.copy(), nd
-    # 随机方向重试：每次尝试不同的飞行方向
     for _ in range(MAX_RETRIES):
         a = np.arctan2(d[1], d[0]) + random.uniform(-np.pi/3, np.pi/3)
         td = np.array([np.cos(a), np.sin(a)])
         twp = pos + td * dist
         if check_path_collision_grid(pos, td, dist, grid, WALL_LENGTH, MIN_WALL_DIST):
             continue
-        # 对这个新位置尝试正交法线
         for wn in _get_ortho_normals(td, idx):
             wr = np.degrees(np.arctan2(wn[1], wn[0])) - 90.0
             if not check_wall_segment_collision_grid(twp, wr, grid, WALL_LENGTH):
@@ -106,7 +176,6 @@ def _try_place(pos, d, dist, idx, note, grid, bp, wtype, cn):
 
 
 def _force_place_smart(pos, d, dist, idx, note, grid, bp, wtype, cn):
-    """智能强制放置：尝试多个方向和距离倍数找到最远离已有墙的位置"""
     best_pos, best_rot, best_min_d = None, 0, -1
     best_wn = _get_ortho_normals(d, idx)[0]
     for mult in [1.0, 1.5, 2.0, 0.7]:
@@ -116,22 +185,18 @@ def _force_place_smart(pos, d, dist, idx, note, grid, bp, wtype, cn):
             twp = pos + td * dist * mult
             wn = _get_ortho_normals(td, idx)[0]
             wr = np.degrees(np.arctan2(wn[1], wn[0])) - 90.0
-            # 计算与最近墙的距离
             md = _min_wall_dist(twp, grid)
             if md > best_min_d:
                 best_min_d = md
                 best_pos = twp.copy()
                 best_rot = wr
                 best_wn = wn
-    wr = best_rot
-    grid.add(_mk_wall(idx, note, best_pos, wr, wtype, cn))
+    grid.add(_mk_wall(idx, note, best_pos, best_rot, wtype, cn))
     bp.append(_mk_kf(note['time_ms'], best_pos))
-    nd = _reflect(d, best_wn)
-    return best_pos, nd
+    return best_pos, _reflect(d, best_wn)
 
 
 def _min_wall_dist(pos, grid):
-    """计算pos到最近墙体的距离"""
     near = grid.query_near(pos[0], pos[1])
     if not near:
         return 999.0
@@ -146,7 +211,6 @@ def _min_wall_dist(pos, grid):
 
 
 def _get_ortho_normals(d, idx=0):
-    """交替横竖：偶数idx→横墙(法线0,±1)，奇数idx→竖墙(法线±1,0)"""
     if idx % 2 == 0:
         pri = [np.array([0.0, 1.0]), np.array([0.0, -1.0])]
         sec = [np.array([1.0, 0.0]), np.array([-1.0, 0.0])]
@@ -156,12 +220,6 @@ def _get_ortho_normals(d, idx=0):
     pri.sort(key=lambda n: -abs(np.dot(d, n)))
     sec.sort(key=lambda n: -abs(np.dot(d, n)))
     return pri + sec
-
-
-def _gen_random_normal(d):
-    a = np.arctan2(d[1], d[0]) + np.pi + random.uniform(-np.pi/3, np.pi/3)
-    n = np.array([np.cos(a), np.sin(a)])
-    return n / np.linalg.norm(n)
 
 
 def _reflect(v, n):
@@ -183,7 +241,8 @@ def _build_group_speed_curve(groups, notes):
         t = min(nps / NPS_MAX, 1.0)
         s = t * t * (3.0 - 2.0 * t)
         raw.append(V_MAX - (V_MAX - V_MIN) * s)
-    if len(raw) <= 2: return raw
+    if len(raw) <= 2:
+        return raw
     sm = [raw[0]]
     for i in range(1, len(raw) - 1):
         sm.append((raw[i-1] + raw[i] + raw[i+1]) / 3.0)
@@ -196,7 +255,8 @@ def _mk_wall(idx, note, pos, rot, wtype='WALL', cn=None):
          'pos': {'x': round(float(pos[0]), 2), 'y': round(float(pos[1]), 2)},
          'rotation': round(float(rot), 2), 'note': note['note'],
          'velocity': note['velocity'], 'instrumentId': note.get('instrumentId', 0)}
-    if cn: w['chordNotes'] = cn
+    if cn:
+        w['chordNotes'] = cn
     return w
 
 

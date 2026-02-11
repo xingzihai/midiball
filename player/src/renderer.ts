@@ -1,6 +1,7 @@
 import { Application, Container, Graphics } from 'pixi.js'
 import type { MdblData, TimelineEvent, BallKeyframe } from './types'
 import { Camera } from './camera'
+import { ChildBallManager } from './child-ball-manager'
 
 const WALL_LENGTH = 10
 const WALL_THICK = 3
@@ -23,7 +24,10 @@ export class Renderer {
   private trail: Graphics[] = []
   private data: MdblData | null = null
   private activatedSet = new Set<number>()
+  private childMgr: ChildBallManager
+  private splitterSpawned = new Set<number>()
   onWallHit: ((event: TimelineEvent) => void) | null = null
+  onChildWallHit: ((event: TimelineEvent) => void) | null = null
 
   constructor(canvas: HTMLCanvasElement) {
     this.app = new Application({
@@ -34,6 +38,7 @@ export class Renderer {
     this.app.stage.addChild(this.scene)
     this.camera = new Camera(this.scene)
     this.camera.resize(this.app.screen.width, this.app.screen.height)
+    this.childMgr = new ChildBallManager(this.scene)
     this.ball = new Graphics()
     this.ball.beginFill(0xffffff)
     this.ball.drawCircle(0, 0, BALL_RADIUS)
@@ -47,12 +52,14 @@ export class Renderer {
   loadData(data: MdblData) {
     this.data = data
     this.activatedSet.clear()
+    this.splitterSpawned.clear()
     this.wallGraphics.forEach(g => g.destroy())
     this.glowGraphics.forEach(g => g.destroy())
     this.wallGraphics = []
     this.glowGraphics = []
     this.trail.forEach(g => g.destroy())
     this.trail = []
+    this.childMgr.destroyAll()
     for (const event of data.timeline) {
       const glow = new Graphics()
       glow.beginFill(0xffffff, 0.4)
@@ -72,7 +79,7 @@ export class Renderer {
       glow.angle = event.rotation; glow.visible = false
       this.scene.addChild(glow); this.glowGraphics.push(glow)
       const g = new Graphics()
-      g.beginFill(0x666666, 0.7)
+      g.beginFill(0xffffff, 1.0)
       g.drawRect(-WALL_LENGTH / 2, -WALL_THICK / 2, WALL_LENGTH, WALL_THICK)
       g.endFill()
       if (event.type === 'SPLITTER') {
@@ -85,6 +92,7 @@ export class Renderer {
         g.drawCircle(0, 0, WALL_LENGTH / 2 + 2)
       }
       g.x = event.pos.x; g.y = event.pos.y; g.angle = event.rotation
+      g.tint = 0x888888; g.alpha = 0.9
       this.scene.addChild(g); this.wallGraphics.push(g)
     }
     for (let i = 0; i < TRAIL_LENGTH; i++) {
@@ -113,17 +121,25 @@ export class Renderer {
     }
     if (this.trail.length > 0) {
       this.trail[0].x = this.ball.x; this.trail[0].y = this.ball.y
-      this.trail[0].visible = true
+      this.trail[0].visible = !this.childMgr.active
     }
     this.ball.x = pos.x; this.ball.y = pos.y
+    this.ball.visible = !this.childMgr.active
     for (let i = 0; i < timeline.length; i++) {
       if (this.activatedSet.has(i)) continue
       if (currentTimeMs >= timeline[i].time) {
         this._activateWall(i)
         this.activatedSet.add(i)
         if (this.onWallHit) this.onWallHit(timeline[i])
+        const ev = timeline[i]
+        if (ev.type === 'SPLITTER' && ev.childPaths && !this.splitterSpawned.has(i)) {
+          this.splitterSpawned.add(i)
+          this.childMgr.spawn(ev.childPaths, currentTimeMs, this.data!.assets.instruments)
+        }
       }
     }
+    this.childMgr.update(currentTimeMs)
+    // 始终使用正常摄像机跟踪，不因子球缩放
     const zoom = this._calcDensityZoom(currentTimeMs)
     this.camera.setTargetZoom(zoom)
     this.camera.update(this.ball.x, this.ball.y)
@@ -131,9 +147,44 @@ export class Renderer {
 
   setManualZoomOffset(offset: number) { this.camera.setManualZoomOffset(offset) }
 
+  setChildWallHitCallback(cb: (event: TimelineEvent) => void) {
+    this.childMgr.onChildWallHit = cb
+  }
+
+  /** 跳转到指定时间：重置状态并快进激活已过墙体 */
+  seekTo(timeMs: number) {
+    if (!this.data) return
+    this.activatedSet.clear()
+    this.splitterSpawned.clear()
+    this.childMgr.destroyAll()
+    this.ball.visible = true
+    for (const g of this.wallGraphics) { g.tint = 0x888888; g.alpha = 0.9 }
+    for (const glow of this.glowGraphics) { glow.visible = false; glow.alpha = 0 }
+    this.trail.forEach(t => (t.visible = false))
+    // 快进：标记所有已过时间的墙体为已激活
+    const { timeline } = this.data
+    for (let i = 0; i < timeline.length; i++) {
+      if (timeline[i].time <= timeMs) {
+        this.activatedSet.add(i)
+        const ev = timeline[i]
+        const color = this.data.assets.instruments[ev.instrumentId]?.color || '#4FC3F7'
+        const hexColor = parseInt(color.replace('#', ''), 16)
+        if (this.wallGraphics[i]) {
+          this.wallGraphics[i].tint = hexColor; this.wallGraphics[i].alpha = 1
+        }
+      }
+    }
+    // 更新球位置
+    const pos = this._interpolateBallPos(this.data.ballPath, timeMs)
+    this.ball.x = pos.x; this.ball.y = pos.y
+    this.camera.snapTo(pos.x, pos.y)}
+
   reset() {
     this.activatedSet.clear()
-    for (const g of this.wallGraphics) { g.tint = 0xffffff; g.alpha = 0.7 }
+    this.splitterSpawned.clear()
+    this.childMgr.destroyAll()
+    this.ball.visible = true
+    for (const g of this.wallGraphics) { g.tint = 0x888888; g.alpha = 0.9 }
     for (const glow of this.glowGraphics) { glow.visible = false; glow.alpha = 0 }
     this.trail.forEach(t => (t.visible = false))
   }
@@ -164,19 +215,19 @@ export class Renderer {
     return { x: a.x + (b.x - a.x) * ratio, y: a.y + (b.y - a.y) * ratio }
   }
 
-  /** 激活墙体：闪烁+光晕，SPLITTER/MERGER仅视觉标记(子球路径为阶段三) */
   private _activateWall(index: number) {
     const g = this.wallGraphics[index]
     const glow = this.glowGraphics[index]
     if (!g || !this.data) return
     const ev = this.data.timeline[index]
-    const instrId = ev.instrumentId
-    const color = this.data.assets.instruments[instrId]?.color || '#4FC3F7'
+    const color = this.data.assets.instruments[ev.instrumentId]?.color || '#4FC3F7'
     const hexColor = parseInt(color.replace('#', ''), 16)
     g.tint = 0xffffff; g.alpha = 1
     if (glow) {
-      glow.tint = hexColor; glow.alpha = 0.8
-      glow.visible = true; glow.scale.set(1.0)
+      glow.tint = hexColor
+      glow.alpha = 0.8
+      glow.visible = true
+      glow.scale.set(1.0)
     }
     let elapsed = 0
     const ticker = this.app.ticker.add((dt: number) => {
@@ -199,7 +250,9 @@ export class Renderer {
   private _lerpColor(c1: number, c2: number, t: number): number {
     const r1 = (c1 >> 16) & 0xff, g1 = (c1 >> 8) & 0xff, b1 = c1 & 0xff
     const r2 = (c2 >> 16) & 0xff, g2 = (c2 >> 8) & 0xff, b2 = c2 & 0xff
-    return (Math.round(r1 + (r2 - r1) * t) << 16) |(Math.round(g1 + (g2 - g1) * t) << 8) |
-            Math.round(b1 + (b2 - b1) * t)
+    const r = Math.round(r1 + (r2 - r1) * t)
+    const g = Math.round(g1 + (g2 - g1) * t)
+    const b = Math.round(b1 + (b2 - b1) * t)
+    return (r << 16) | (g << 8) | b
   }
 }

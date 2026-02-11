@@ -41,6 +41,17 @@ export interface TimelineEvent {
   velocity: number    // 力度
   instrumentId: number
   chordNotes?: { note: number; velocity: number; instrumentId: number }[]
+  childPaths?: ChildPath[]
+}
+
+/** 子球路径数据（SPLITTER分裂后每个子球的独立路径） */
+export interface ChildPath {
+  note: number
+  velocity: number
+  instrumentId: number
+  walls: TimelineEvent[]
+  keyframes: BallKeyframe[]
+  mergerTime: number
 }
 
 /** 小球路径关键帧 */

@@ -41,11 +41,16 @@ def write_mdbl(walls: List[Dict], ball_path: List[Dict],
 
 
 def _calc_bounds(walls: List[Dict], ball_path: List[Dict]) -> Dict:
-    """计算地图边界(遍历所有坐标取min/max + padding)"""
+    """计算地图边界(遍历所有坐标含子球路径取min/max + padding)"""
     all_x, all_y = [0.0], [0.0]
     for w in walls:
         all_x.append(w['pos']['x'])
         all_y.append(w['pos']['y'])
+        # 子球路径关键帧也纳入边界计算
+        for cp in w.get('childPaths', []):
+            for kf in cp.get('keyframes', []):
+                all_x.append(kf['x'])
+                all_y.append(kf['y'])
     for p in ball_path:
         all_x.append(p['x'])
         all_y.append(p['y'])
