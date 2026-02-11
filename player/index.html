@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MidiMarble Player</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0a0a; color: #eee; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+    #controls {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 20px; background: rgba(10,10,10,0.85);
+      border-bottom: 1px solid #222;
+    }
+    #controls label { cursor: pointer; padding: 6px 14px; border-radius: 4px; background: #1a1a2e; border: 1px solid #333; font-size: 14px; }
+    #controls label:hover { background: #16213e; }
+    #file-input { display: none; }
+    #play-btn { padding: 6px 18px; border-radius: 4px; border: 1px solid #333; background: #0f3460; color: #eee; font-size: 14px; cursor: pointer; }
+    #play-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    #play-btn:hover:not(:disabled) { background: #1a5276; }
+    #time-display { font-size: 14px; color: #888; font-variant-numeric: tabular-nums; }
+    #title-display { font-size: 14px; color: #4FC3F7; }
+    .zoom-group { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+    .zoom-group span { font-size: 12px; color: #888; }
+    #zoom-slider { width: 100px; accent-color: #4FC3F7; }
+    #zoom-value { font-size: 12px; color: #4FC3F7; min-width: 36px; text-align: center; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+  <div id="controls">
+    <label for="file-input">📂 选择 .mdbl</label>
+    <input type="file" id="file-input" accept=".mdbl,.json">
+    <button id="play-btn" disabled>▶ 播放</button>
+    <span id="time-display">0:00</span>
+    <span id="title-display"></span>
+    <div class="zoom-group">
+      <span>🔍</span>
+      <input type="range" id="zoom-slider" min="-1" max="2" step="0.1" value="0">
+      <span id="zoom-value">1.0x</span>
+    </div>
+  </div>
+  <canvas id="canvas"></canvas>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
