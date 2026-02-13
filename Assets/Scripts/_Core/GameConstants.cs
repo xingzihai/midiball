@@ -17,6 +17,11 @@ namespace StarPipe.Core
         // 判定
         public const float HIT_RADIUS = 0.5f;public const float JUDGE_TOLERANCE = 0.15f;
 
+        // 辅助球外侧轨道
+        public const float BOT_TRACK_INNER = 4.5f;   // 辅助轨道内边界（主管道外侧）
+        public const float BOT_TRACK_OUTER = 6.0f;    // 辅助轨道外边界
+        public const float BOT_EMITTER_X = 5.8f;      // 辅助发声器X位置（贴外壁）
+
         // 游戏机制
         public const int COMBO_TO_UNLOCK = 5;
         public const int MISS_TO_PENALTY = 5;

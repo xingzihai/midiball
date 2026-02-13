@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEditor;
 using StarPipe.Gameplay;
 using StarPipe.Visuals;
+using StarPipe.Map;
 
 namespace StarPipe.EditorTools
 {
@@ -21,6 +22,15 @@ namespace StarPipe.EditorTools
             }
             else Debug.Log("[Phase4Setup] GameStateManager 已存在");
 
+            // BotEmitterGenerator（辅助球外侧发声器）
+            if (Object.FindObjectOfType<BotEmitterGenerator>() == null)
+            {
+                var go = new GameObject("BotEmitterGenerator");
+                go.AddComponent<BotEmitterGenerator>();
+                Debug.Log("[Phase4Setup] 创建 BotEmitterGenerator");
+            }
+            else Debug.Log("[Phase4Setup] BotEmitterGenerator 已存在");
+
             // WorldCurve占位
             if (Object.FindObjectOfType<WorldCurve>() == null)
             {
@@ -32,7 +42,7 @@ namespace StarPipe.EditorTools
 
             // 检查前置组件
             CheckExists<StarPipe.Audio.AudioConductor>("AudioConductor");
-            CheckExists<StarPipe.Map.MapGenerator>("MapGenerator");
+            CheckExists<MapGenerator>("MapGenerator");
             CheckExists<NoteJudge>("NoteJudge");
             CheckExists<PlayerController>("PlayerController");
 
