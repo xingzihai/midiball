@@ -1,4 +1,6 @@
 // IAudioConductor.cs — 音频控制器接口，供其他模块通过ServiceLocator获取
+using StarPipe.Core;
+
 namespace StarPipe.Audio
 {
     public interface IAudioConductor
@@ -26,5 +28,11 @@ namespace StarPipe.Audio
 
         /// <summary>停止并重置</summary>
         void Stop();
+
+        /// <summary>静音指定轨道</summary>
+        void MuteTrack(TrackType track);
+
+        /// <summary>取消静音指定轨道</summary>
+        void UnmuteTrack(TrackType track);
     }
 }
