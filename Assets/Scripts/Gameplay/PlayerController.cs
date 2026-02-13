@@ -1,6 +1,6 @@
 // PlayerController.cs — 玩家运动学控制器（直接映射+独立冲量）
 // Z轴：dspTime驱动，X轴：Input.GetAxis直接映射速度
-// 冲量独立衰减，不被输入清零；管道壁硬夹紧不反弹
+//冲量独立衰减，不被输入清零；管道壁硬夹紧不反弹
 using UnityEngine;
 using StarPipe.Core;
 using StarPipe.Audio;
@@ -12,12 +12,12 @@ namespace StarPipe.Gameplay
     public class PlayerController : MonoBehaviour
     {
         [Header("横向控制")]
-        [SerializeField] private float maxLateralSpeed = 50f;
+        [SerializeField] private float maxLateralSpeed = 70f; // 50→70，全宽穿越100ms
         [SerializeField] private float playerRadius = 0.4f;
 
         [Header("外部冲量（发声器反弹等）")]
         [SerializeField] private float impulseDecay = 25f;
-        [SerializeField] private float maxImpulse = 20f; // 冲量上限防止叠加爆炸
+        [SerializeField] private float maxImpulse = 20f;
 
         private IAudioConductor _conductor;
         private Rigidbody _rb;
@@ -40,15 +40,13 @@ namespace StarPipe.Gameplay
 
             float dt = Time.deltaTime;
             float inputVelocity = Input.GetAxis("Horizontal") * maxLateralSpeed;
-            // 冲量独立衰减，始终与输入叠加（不清零）
             _impulseVelocity = Mathf.MoveTowards(_impulseVelocity, 0f, impulseDecay * dt);
             _posX += (inputVelocity + _impulseVelocity) * dt;
-            // 管道壁：硬夹紧 + 清零冲量（不反弹，避免卡墙抖动）
             float hw = GameConstants.TRACK_HALF_WIDTH;
             if (_posX > hw || _posX < -hw)
             {
                 _posX = Mathf.Clamp(_posX, -hw, hw);
-                _impulseVelocity = 0f; // 撞墙吃掉冲量
+                _impulseVelocity = 0f;
             }
 
             float z = (float)_conductor.SongTime * GameConstants.SCROLL_SPEED;
@@ -97,5 +95,6 @@ namespace StarPipe.Gameplay
         public void ApplyLateralImpulse(float impulse)
         {
             _impulseVelocity = Mathf.Clamp(_impulseVelocity + impulse, -maxImpulse, maxImpulse);
-        }public float VelocityX => Input.GetAxis("Horizontal") * maxLateralSpeed + _impulseVelocity;}
+        }public float VelocityX => Input.GetAxis("Horizontal") * maxLateralSpeed + _impulseVelocity;
+    }
 }
