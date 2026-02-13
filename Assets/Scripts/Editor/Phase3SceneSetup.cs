@@ -15,10 +15,14 @@ namespace StarPipe.Editor
         [MenuItem("StarPipe/Setup Phase3 Scene")]
         public static void SetupScene()
         {
-            // 先执行Phase2配置
+            if (Application.isPlaying)
+            {
+                Debug.LogWarning("[SceneSetup] 请先停止Play模式再执行！");
+                return;
+            }
+
             Phase2SceneSetup.SetupScene();
 
-            // 创建/查找 MapGenerator
             var mapObj = GameObject.Find("MapGenerator");
             if (mapObj == null)
             {
@@ -28,7 +32,6 @@ namespace StarPipe.Editor
             if (mapObj.GetComponent<MapGenerator>() == null)
                 mapObj.AddComponent<MapGenerator>();
 
-            // 创建/查找 NoteJudge
             var judgeObj = GameObject.Find("NoteJudge");
             if (judgeObj == null)
             {
@@ -38,13 +41,13 @@ namespace StarPipe.Editor
             if (judgeObj.GetComponent<NoteJudge>() == null)
                 judgeObj.AddComponent<NoteJudge>();
 
-            // 摄像机跟随
             var cam = Camera.main;
             if (cam != null && cam.GetComponent<CameraFollow>() == null)
                 cam.gameObject.AddComponent<CameraFollow>();
 
             UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(
-                UnityEngine.SceneManagement.SceneManager.GetActiveScene());Debug.Log("[SceneSetup] ✓ Phase3 场景配置完成！点击 Play 验证。");
+                UnityEngine.SceneManagement.SceneManager.GetActiveScene());
+            Debug.Log("[SceneSetup] ✓ Phase3 场景配置完成！点击 Play 验证。");
         }
     }
 }

@@ -9,37 +9,27 @@ namespace StarPipe.Map
     public class MapGenerator : MonoBehaviour
     {
         [Header("对象池配置")]
-        [SerializeField] private int poolSize = 200;
+        [SerializeField] private int poolSize = 1000;
         [SerializeField] private Vector3 noteScale = new Vector3(0.8f, 0.8f, 0.3f);
 
         [Header("可视范围（Z轴前方多远开始显示）")]
         [SerializeField] private float spawnAhead = 80f;
         [SerializeField] private float despawnBehind = 10f;
 
-        // 对象池
         private Queue<NoteMarker> _pool = new Queue<NoteMarker>();
         private List<NoteMarker> _activeMarkers = new List<NoteMarker>();
         private Transform _poolParent;
-
-        // 数据
         private IAudioConductor _conductor;
         private NoteData[] _notes;
         private int _nextSpawnIndex;
         private bool _initialized;
 
-        // 公共访问：供NoteJudge查找激活的Marker
         public List<NoteMarker> ActiveMarkers => _activeMarkers;
 
         void Update()
         {
-            // 延迟初始化：等AudioConductor加载完SongData后再初始化
-            if (!_initialized)
-            {
-                TryInit();
-                return;
-            }
+            if (!_initialized) { TryInit(); return; }
             if (_notes == null || _conductor == null) return;
-
             float playerZ = (float)_conductor.SongTime * GameConstants.SCROLL_SPEED;
             SpawnNotes(playerZ);
             RecycleNotes(playerZ);
@@ -50,8 +40,6 @@ namespace StarPipe.Map
             if (!ServiceLocator.Has<IAudioConductor>()) return;
             _conductor = ServiceLocator.Get<IAudioConductor>();
             if (_conductor?.CurrentSongData == null) return;
-
-            // 使用所有音符（test.mid可能没有独立Melody轨道）
             _notes = _conductor.CurrentSongData.allNotes;
             _nextSpawnIndex = 0;
             InitPool();
@@ -63,7 +51,6 @@ namespace StarPipe.Map
         {
             _poolParent = new GameObject("NotePool").transform;
             _poolParent.SetParent(transform);
-
             for (int i = 0; i < poolSize; i++)
             {
                 var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -77,7 +64,6 @@ namespace StarPipe.Map
             }
         }
 
-        /// <summary>生成前方即将进入视野的音符方块</summary>
         private void SpawnNotes(float playerZ)
         {
             float spawnZ = playerZ + spawnAhead;
@@ -85,7 +71,6 @@ namespace StarPipe.Map
             {
                 float noteZ = (float)_notes[_nextSpawnIndex].timeInSeconds * GameConstants.SCROLL_SPEED;
                 if (noteZ > spawnZ) break;
-
                 if (_pool.Count > 0)
                 {
                     var marker = _pool.Dequeue();
@@ -93,15 +78,11 @@ namespace StarPipe.Map
                     marker.Reset(_nextSpawnIndex, pos);
                     _activeMarkers.Add(marker);
                 }
-                else
-                {
-                    Debug.LogWarning("[MapGenerator] 对象池耗尽");
-                }
+                else { Debug.LogWarning("[MapGenerator] 对象池耗尽"); }
                 _nextSpawnIndex++;
             }
         }
 
-        /// <summary>回收已经在玩家身后的方块</summary>
         private void RecycleNotes(float playerZ)
         {
             float recycleZ = playerZ - despawnBehind;
