@@ -1,5 +1,6 @@
 // AudioConductor.cs — 核心音频控制器，dspTime驱动 + 分轨播放管理
 // 挂载到场景中的空GameObject上，Awake时自动注册到ServiceLocator
+// 关键：dspTime按音频缓冲块更新，帧间用deltaTime插值平滑
 using UnityEngine;
 using StarPipe.Core;
 
@@ -19,12 +20,14 @@ namespace StarPipe.Audio
         [SerializeField] private AudioClip bassClip;
         [SerializeField] private AudioClip chordsClip;
 
-        public double SongTime => _songTime;
+        public double SongTime => _smoothTime;
         public bool IsPlaying => _isPlaying;
         public SongData CurrentSongData => _songData;
 
         private double _dspStartTime;
-        private double _songTime;
+        private double _songTime;      // 原始dspTime差值（阶梯式）
+        private double _smoothTime;// 帧间插值后的平滑时间
+        private double _lastDspTime;   // 上一帧的dspTime，用于检测跳变
         private double _pauseTime;
         private bool _isPlaying;
         private SongData _songData;
@@ -47,7 +50,18 @@ namespace StarPipe.Audio
         void Update()
         {
             if (!_isPlaying) return;
-            _songTime = AudioSettings.dspTime - _dspStartTime;
+            double currentDsp = AudioSettings.dspTime;
+            _songTime = currentDsp - _dspStartTime;
+            // 检测dspTime是否发生了跳变（新的音频缓冲块到达）
+            if (currentDsp != _lastDspTime)
+            {
+                // dspTime更新了，同步到真实值
+                _smoothTime = _songTime;
+                _lastDspTime = currentDsp;
+            }else
+            {
+                // dspTime未更新（帧间），用deltaTime外推保持平滑
+                _smoothTime += Time.deltaTime;}
         }
 
         private void InitStems()
@@ -78,7 +92,6 @@ namespace StarPipe.Audio
                 return;
             }
             _songData = MidiParser.Parse(fullPath);
-            // 关键：MIDI音符不足时，回退到程序化生成
             if (_songData.allNotes.Length < minNoteCount)
             {
                 Debug.LogWarning($"[AudioConductor] MIDI仅{_songData.allNotes.Length}个音符，" +
@@ -94,6 +107,8 @@ namespace StarPipe.Audio
             double scheduleTime = AudioSettings.dspTime + 0.1;
             _dspStartTime = scheduleTime;
             _songTime = 0;
+            _smoothTime = 0;
+            _lastDspTime = 0;
             _isPlaying = true;
             for (int i = 0; i < _stems.Length; i++)
             {
@@ -108,10 +123,10 @@ namespace StarPipe.Audio
         {
             if (!_isPlaying) return;
             _isPlaying = false;
-            _pauseTime = _songTime;
+            _pauseTime = _smoothTime;
             foreach (var s in _stems)
                 if (s.isPlaying) s.Pause();
-            Debug.Log($"[AudioConductor] 暂停 | songTime={_songTime:F3}s");
+            Debug.Log($"[AudioConductor] 暂停 | songTime={_smoothTime:F3}s");
             EventBus.OnGameStateChanged?.Invoke(GameState.Paused);
         }
 
@@ -119,6 +134,8 @@ namespace StarPipe.Audio
         {
             if (_isPlaying) return;
             _dspStartTime = AudioSettings.dspTime - _pauseTime;
+            _smoothTime = _pauseTime;
+            _lastDspTime = 0; // 强制下一帧重新同步
             _isPlaying = true;
             foreach (var s in _stems) s.UnPause();
             Debug.Log($"[AudioConductor] 恢复 | songTime={_pauseTime:F3}s");
@@ -129,6 +146,7 @@ namespace StarPipe.Audio
         {
             _isPlaying = false;
             _songTime = 0;
+            _smoothTime = 0;
             foreach (var s in _stems) s.Stop();
             Debug.Log("[AudioConductor] 停止");
             EventBus.OnGameStateChanged?.Invoke(GameState.GameOver);

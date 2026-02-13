@@ -38,7 +38,7 @@ namespace StarPipe.Editor
                 if (rb == null) rb = playerObj.AddComponent<Rigidbody>();
                 rb.isKinematic = true;
                 rb.useGravity = false;
-                rb.interpolation = RigidbodyInterpolation.Interpolate;
+                rb.interpolation = RigidbodyInterpolation.None; // 关闭插值防抖动
                 Debug.Log("[SceneSetup] Player碰撞组件已配置");
             }
 
@@ -51,7 +51,6 @@ namespace StarPipe.Editor
             }
             var mapGen = mapObj.GetComponent<MapGenerator>();
             if (mapGen == null) mapGen = mapObj.AddComponent<MapGenerator>();
-            // 强制覆盖noteScale：墙壁式(薄0.5, 高2.0, 厚2.0)
             var so = new SerializedObject(mapGen);
             var scaleProp = so.FindProperty("noteScale");
             if (scaleProp != null)
