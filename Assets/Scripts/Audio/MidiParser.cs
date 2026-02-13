@@ -11,78 +11,97 @@ namespace StarPipe.Audio
 {
     public static class MidiParser
     {
-        //轨道索引映射规则：Track0=Melody, Track1=Drums, Track2=Bass, Track3=Chords
         private static readonly TrackType[] TrackMap = {
             TrackType.Melody, TrackType.Drums, TrackType.Bass, TrackType.Chords
         };
 
-        /// <summary>
-        /// 解析MIDI文件，返回完整的SongData
-        /// </summary>
-        /// <param name="filePath">MIDI文件的完整路径</param>
+        /// <summary>解析MIDI文件，返回完整的SongData</summary>
         public static SongData Parse(string filePath)
         {
             var midiFile = MidiFile.Read(filePath);
             var tempoMap = midiFile.GetTempoMap();
             var allNotes = new List<NoteData>();
 
-            // 按chunk(轨道)遍历
             var trackChunks = midiFile.GetTrackChunks().ToArray();
             for (int i = 0; i < trackChunks.Length; i++)
             {
                 var trackType = i < TrackMap.Length ? TrackMap[i] : TrackType.Melody;
                 var notes = trackChunks[i].GetNotes();
-
                 foreach (var note in notes)
                 {
-                    // tick ->秒
                     double timeSec = note.TimeAs<MetricTimeSpan>(tempoMap).TotalSeconds;
                     double durSec = note.LengthAs<MetricTimeSpan>(tempoMap).TotalSeconds;
                     int midiNote = note.NoteNumber;
                     float xPos = GameConstants.MidiNoteToX(midiNote);
-
-                    // 默认Normal，后续可根据特定规则标记Special
-                    var noteType = NoteType.Normal;
-
                     allNotes.Add(new NoteData(
-                        timeSec, midiNote, xPos, (float)durSec, trackType, noteType
+                        timeSec, midiNote, xPos, (float)durSec, trackType, NoteType.Normal
                     ));
                 }
             }
-
-            // 按时间排序
             allNotes.Sort((a, b) => a.timeInSeconds.CompareTo(b.timeInSeconds));
 
-            // 提取BPM（取第一个Tempo事件）
-            float bpm = 120f; // 默认值
+            float bpm = 120f;
             var tempos = tempoMap.GetTempoChanges().ToArray();
-            if (tempos.Length > 0)bpm = (float)tempos[0].Value.BeatsPerMinute;
+            if (tempos.Length > 0) bpm = (float)tempos[0].Value.BeatsPerMinute;
 
-            // 计算总时长
             double totalDur = allNotes.Count > 0
                 ? allNotes[allNotes.Count - 1].timeInSeconds + allNotes[allNotes.Count - 1].duration
                 : 0;
 
-            // 按轨道分组
             var noteArray = allNotes.ToArray();
-            var songData = new SongData
-            {
-                songName = System.IO.Path.GetFileNameWithoutExtension(filePath),
-                bpm = bpm,
-                totalDuration = totalDur,
-                allNotes = noteArray,
-                melodyNotes = noteArray.Where(n => n.track == TrackType.Melody).ToArray(),
-                drumsNotes = noteArray.Where(n => n.track == TrackType.Drums).ToArray(),
-                bassNotes = noteArray.Where(n => n.track == TrackType.Bass).ToArray(),
-                chordsNotes = noteArray.Where(n => n.track == TrackType.Chords).ToArray()
-            };
+            var songData = BuildSongData(
+                System.IO.Path.GetFileNameWithoutExtension(filePath), bpm, totalDur, noteArray);
 
             Debug.Log($"[MidiParser] 解析完成: {songData.songName} | BPM={bpm:F1} | " +
-                      $"总音符={noteArray.Length} | 时长={totalDur:F2}s | " +
-                      $"Melody={songData.melodyNotes.Length} Drums={songData.drumsNotes.Length} " +
-                      $"Bass={songData.bassNotes.Length} Chords={songData.chordsNotes.Length}");
-
+                      $"总音符={noteArray.Length} | 时长={totalDur:F2}s");
             return songData;
+        }
+
+        /// <summary>程序化生成测试音符（当MIDI音符不足时使用）</summary>
+        /// <param name="count">生成音符总数</param>
+        /// <param name="bpm">节拍速度</param>
+        public static SongData GenerateTestNotes(int count = 1000, float bpm = 120f)
+        {
+            var allNotes = new List<NoteData>(count);
+            float beatInterval = 60f / bpm; // 每拍间隔（秒）
+            // 每半拍放一个音符，交替左右分布
+            float noteSpacing = beatInterval * 0.5f;
+            var rng = new System.Random(42); // 固定种子保证可复现
+
+            for (int i = 0; i < count; i++)
+            {
+                double timeSec = i * noteSpacing;
+                // 随机MIDI音高40~90，覆盖左右两侧
+                int midiNote = rng.Next(40, 91);
+                float xPos = GameConstants.MidiNoteToX(midiNote);
+                float dur = noteSpacing * 0.8f;
+                //轮流分配轨道
+                var track = (TrackType)(i % 4);
+                allNotes.Add(new NoteData(timeSec, midiNote, xPos, dur, track, NoteType.Normal));
+            }
+
+            double totalDur = count * noteSpacing;
+            var noteArray = allNotes.ToArray();
+            var songData = BuildSongData("ProceduralTest", bpm, totalDur, noteArray);
+
+            Debug.Log($"[MidiParser] 程序化生成完成: {count}个音符 | BPM={bpm} | 时长={totalDur:F1}s");
+            return songData;
+        }
+
+        /// <summary>构建SongData并按轨道分组</summary>
+        private static SongData BuildSongData(string name, float bpm, double totalDur, NoteData[] notes)
+        {
+            return new SongData
+            {
+                songName = name,
+                bpm = bpm,
+                totalDuration = totalDur,
+                allNotes = notes,
+                melodyNotes = notes.Where(n => n.track == TrackType.Melody).ToArray(),
+                drumsNotes = notes.Where(n => n.track == TrackType.Drums).ToArray(),
+                bassNotes = notes.Where(n => n.track == TrackType.Bass).ToArray(),
+                chordsNotes = notes.Where(n => n.track == TrackType.Chords).ToArray()
+            };
         }
     }
 }
