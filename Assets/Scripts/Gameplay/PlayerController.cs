@@ -1,5 +1,6 @@
 // PlayerController.cs — 玩家运动学控制器
 // Z轴：dspTime驱动（零漂移），X轴：输入驱动 + 边界反弹
+// 附带SphereCollider+KinematicRigidbody用于与发声器挡板碰撞
 using UnityEngine;
 using StarPipe.Core;
 using StarPipe.Audio;
@@ -9,11 +10,10 @@ namespace StarPipe.Gameplay
     public class PlayerController : MonoBehaviour
     {
         [Header("横向物理参数")]
-        [SerializeField] private float lateralAccel = 150f;   // 横向加速度
-        [SerializeField] private float maxLateralSpeed = 50f;  // 横向最大速度（大幅提升）
-        [SerializeField] private float damping = 0.88f;        // 无输入时速度衰减
+        [SerializeField] private float lateralAccel = 150f;
+        [SerializeField] private float maxLateralSpeed = 50f;
+        [SerializeField] private float damping = 0.88f;
 
-        //内部状态
         private IAudioConductor _conductor;
         private float _velocityX;
         private float _posX;
@@ -21,7 +21,7 @@ namespace StarPipe.Gameplay
 
         void Start()
         {
-            // 延迟获取，确保AudioConductor已注册
+            EnsureCollisionComponents();
             TryInit();
         }
 
@@ -29,9 +29,29 @@ namespace StarPipe.Gameplay
         {
             if (!_initialized) TryInit();
             if (!_initialized || _conductor == null) return;
-
             UpdateLateralMovement();
             UpdatePosition();
+        }
+
+        /// <summary>确保Player有碰撞所需的组件</summary>
+        private void EnsureCollisionComponents()
+        {
+            // SphereCollider（非Trigger，用于与Trigger挡板产生OnTriggerEnter）
+            if (GetComponent<SphereCollider>() == null)
+            {
+                var sc = gameObject.AddComponent<SphereCollider>();
+                sc.radius = 0.4f;
+                sc.isTrigger = false;
+            }
+            // Kinematic Rigidbody（位置由代码驱动，但需要它才能触发OnTrigger回调）
+            if (GetComponent<Rigidbody>() == null)
+            {
+                var rb = gameObject.AddComponent<Rigidbody>();
+                rb.isKinematic = true;
+                rb.useGravity = false;
+            }
+            // 确保Tag为Player
+            gameObject.tag = "Player";
         }
 
         private void TryInit()
@@ -47,27 +67,24 @@ namespace StarPipe.Gameplay
         /// <summary>X轴：输入加速 + 阻尼 + 边界反弹</summary>
         private void UpdateLateralMovement()
         {
-            float input = Input.GetAxisRaw("Horizontal"); // 无平滑插值，即时响应
+            float input = Input.GetAxisRaw("Horizontal");
             float dt = Time.deltaTime;
 
-            // 加速
             if (Mathf.Abs(input) > 0.01f)
                 _velocityX += input * lateralAccel * dt;
             else
-                _velocityX *= damping; // 无输入时衰减
+                _velocityX *= damping;
 
-            // 限速
             _velocityX = Mathf.Clamp(_velocityX, -maxLateralSpeed, maxLateralSpeed);
-
-            // 位移
             _posX += _velocityX * dt;
 
             // 边界反弹（完全弹性）
             float hw = GameConstants.TRACK_HALF_WIDTH;
             if (_posX > hw)
             {
-                _posX = hw - (_posX - hw); // 反射回来
-                _velocityX = -_velocityX;_posX = Mathf.Clamp(_posX, -hw, hw);
+                _posX = hw - (_posX - hw);
+                _velocityX = -_velocityX;
+                _posX = Mathf.Clamp(_posX, -hw, hw);
             }
             else if (_posX < -hw)
             {
@@ -77,23 +94,19 @@ namespace StarPipe.Gameplay
             }
         }
 
-        /// <summary>组合Z(时间驱动)和X(输入驱动)，设置最终位置</summary>
+        /// <summary>组合Z(时间驱动)和X(输入驱动)</summary>
         private void UpdatePosition()
         {
-            // Z轴：严格跟随songTime，不累积，零漂移
             float z = (float)_conductor.SongTime * GameConstants.SCROLL_SPEED;
             transform.position = new Vector3(_posX, transform.position.y, z);
         }
 
-        // --- 公共接口（供后续阶段调用）---
-
-        /// <summary>施加横向冲量（如被音符弹射向中心）</summary>
+        /// <summary>施加横向冲量（被挡板弹射时调用）</summary>
         public void ApplyLateralImpulse(float impulse)
         {
             _velocityX += impulse;
         }
 
-        /// <summary>当前横向速度（供外部读取）</summary>
         public float VelocityX => _velocityX;
     }
 }

@@ -1,4 +1,5 @@
-// MapGenerator.cs — 根据MIDI数据生成发声器方块（对象池管理）
+// MapGenerator.cs — 根据MIDI数据生成横向发声器挡板（对象池管理）
+// 发声器从墙壁向内延伸，小球碰撞后反弹
 using System.Collections.Generic;
 using UnityEngine;
 using StarPipe.Core;
@@ -10,7 +11,8 @@ namespace StarPipe.Map
     {
         [Header("对象池配置")]
         [SerializeField] private int poolSize = 1000;
-        [SerializeField] private Vector3 noteScale = new Vector3(0.8f, 0.8f, 0.3f);
+        // 横向挡板：宽(X)=从墙向内延伸长度, 高(Y),厚(Z)
+        [SerializeField] private Vector3 noteScale = new Vector3(3.0f, 0.6f, 0.3f);
 
         [Header("可视范围（Z轴前方多远开始显示）")]
         [SerializeField] private float spawnAhead = 80f;
@@ -56,12 +58,28 @@ namespace StarPipe.Map
                 var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
                 cube.transform.SetParent(_poolParent);
                 cube.transform.localScale = noteScale;
-                var col = cube.GetComponent<Collider>();
-                if (col != null) Destroy(col);
+                // 保留BoxCollider作为Trigger用于碰撞检测
+                var col = cube.GetComponent<BoxCollider>();
+                if (col != null) col.isTrigger = true;
+                cube.layer = LayerMask.NameToLayer("Default");
                 var marker = cube.AddComponent<NoteMarker>();
                 cube.SetActive(false);
                 _pool.Enqueue(marker);
             }
+        }
+
+        /// <summary>
+        /// 计算横向挡板的X位置：从墙壁向内延伸
+        /// 挡板中心 = 墙壁位置 - 挡板半宽（右侧）或+ 挡板半宽（左侧）
+        /// </summary>
+        private float CalcBarCenterX(float noteX)
+        {
+            float halfBar = noteScale.x * 0.5f;
+            float hw = GameConstants.TRACK_HALF_WIDTH;
+            if (noteX > 0) // 右侧墙壁：挡板从右墙向左延伸
+                return hw - halfBar;
+            else           // 左侧墙壁：挡板从左墙向右延伸
+                return -hw + halfBar;
         }
 
         private void SpawnNotes(float playerZ)
@@ -74,8 +92,11 @@ namespace StarPipe.Map
                 if (_pool.Count > 0)
                 {
                     var marker = _pool.Dequeue();
-                    Vector3 pos = new Vector3(_notes[_nextSpawnIndex].xPosition, 0.5f, noteZ);
-                    marker.Reset(_nextSpawnIndex, pos);
+                    float rawX = _notes[_nextSpawnIndex].xPosition;
+                    float barX = CalcBarCenterX(rawX);
+                    Vector3 pos = new Vector3(barX, 0.5f, noteZ);
+                    // 记录挡板朝向（从哪侧墙壁延伸）
+                    marker.Reset(_nextSpawnIndex, pos, rawX > 0);
                     _activeMarkers.Add(marker);
                 }
                 else { Debug.LogWarning("[MapGenerator] 对象池耗尽"); }
