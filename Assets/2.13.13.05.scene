@@ -158,10 +158,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: feb7f8f4d17f5114594a16f2b420ecbc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  lateralAccel: 30
   maxLateralSpeed: 15
-  damping: 0.95
+  responseCurve: 2
+  deadZone: 0.05
   playerRadius: 0.4
+  impulseDecay: 8
 --- !u!23 &373246432
 MeshRenderer:
   m_ObjectHideFlags: 0
