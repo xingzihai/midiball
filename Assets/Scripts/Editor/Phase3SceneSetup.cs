@@ -6,6 +6,7 @@ using UnityEditor;
 using StarPipe.Audio;
 using StarPipe.Gameplay;
 using StarPipe.Map;
+using StarPipe.Visuals;
 
 namespace StarPipe.Editor
 {
@@ -37,13 +38,10 @@ namespace StarPipe.Editor
             if (judgeObj.GetComponent<NoteJudge>() == null)
                 judgeObj.AddComponent<NoteJudge>();
 
-            // 调整摄像机：稍微拉远以看到更多方块
+            // 摄像机跟随
             var cam = Camera.main;
-            if (cam != null)
-            {
-                cam.transform.position = new Vector3(0, 8, -15);
-                cam.transform.eulerAngles = new Vector3(25, 0, 0);
-            }
+            if (cam != null && cam.GetComponent<CameraFollow>() == null)
+                cam.gameObject.AddComponent<CameraFollow>();
 
             UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(
                 UnityEngine.SceneManagement.SceneManager.GetActiveScene());Debug.Log("[SceneSetup] ✓ Phase3 场景配置完成！点击 Play 验证。");
