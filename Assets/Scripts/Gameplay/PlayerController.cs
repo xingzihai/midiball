@@ -16,7 +16,7 @@ namespace StarPipe.Gameplay
         [SerializeField] private float playerRadius = 0.4f;
 
         [Header("外部冲量")]
-        [SerializeField] private float impulseDecay = 20f; // 加速衰减：8→20
+        [SerializeField] private float impulseDecay = 20f;
 
         private IAudioConductor _conductor;
         private Rigidbody _rb;
@@ -39,6 +39,11 @@ namespace StarPipe.Gameplay
 
             float dt = Time.deltaTime;
             float inputVelocity = Input.GetAxis("Horizontal") * maxLateralSpeed;
+            // 关键：输入方向与冲量方向相反时，立即清零冲量
+            //玩家主动输入应覆盖被动反弹，避免抵消导致速度慢
+            if (Mathf.Abs(inputVelocity) > 0.1f &&
+                Mathf.Sign(inputVelocity) != Mathf.Sign(_impulseVelocity))
+                _impulseVelocity = 0f;
             _impulseVelocity = Mathf.MoveTowards(_impulseVelocity, 0f, impulseDecay * dt);
             _posX += (inputVelocity + _impulseVelocity) * dt;
             float hw = GameConstants.TRACK_HALF_WIDTH;
