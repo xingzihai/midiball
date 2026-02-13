@@ -1,6 +1,6 @@
 // PlayerController.cs — 玩家运动学控制器
 // Z轴：dspTime驱动，X轴：输入驱动 + 边界反弹
-// Rigidbody.MovePosition + 手动AABB碰撞检测（双保险）
+// 直接transform.position驱动 + 手动AABB碰撞检测
 using UnityEngine;
 using StarPipe.Core;
 using StarPipe.Audio;
@@ -8,7 +8,6 @@ using StarPipe.Map;
 
 namespace StarPipe.Gameplay
 {
-    [RequireComponent(typeof(Rigidbody))]
     [RequireComponent(typeof(SphereCollider))]
     public class PlayerController : MonoBehaviour
     {
@@ -23,7 +22,7 @@ namespace StarPipe.Gameplay
         private MapGenerator _mapGen;
         private float _velocityX;
         private float _posX;
-        private float _fixedY; // 锁定Y轴，防止漂移抖动
+        private float _fixedY; // 锁定Y轴
         private bool _initialized;
 
         void Start()
@@ -37,16 +36,11 @@ namespace StarPipe.Gameplay
             if (!_initialized) TryInit();
             if (!_initialized || _conductor == null) return;
             UpdateLateralMovement();
+            // 直接在Update中设置位置，避免FixedUpdate+插值导致的抖动
+            float z = (float)_conductor.SongTime * GameConstants.SCROLL_SPEED;
+            transform.position = new Vector3(_posX, _fixedY, z);
             // 手动碰撞检测（防止高速穿透Trigger失效）
             CheckManualCollisions();
-        }
-
-        void FixedUpdate()
-        {
-            if (!_initialized || _conductor == null || _rb == null) return;
-            float z = (float)_conductor.SongTime * GameConstants.SCROLL_SPEED;
-            // 使用_fixedY锁定Y轴，避免每帧读取transform.position.y导致漂移
-            _rb.MovePosition(new Vector3(_posX, _fixedY, z));
         }
 
         private void EnsureCollisionComponents()
@@ -56,11 +50,12 @@ namespace StarPipe.Gameplay
             sc.radius = playerRadius;
             sc.isTrigger = false;
 
+            // 保留Rigidbody用于OnTriggerEnter回调，但关闭插值
             _rb = GetComponent<Rigidbody>();
             if (_rb == null) _rb = gameObject.AddComponent<Rigidbody>();
             _rb.isKinematic = true;
             _rb.useGravity = false;
-            _rb.interpolation = RigidbodyInterpolation.Interpolate;
+            _rb.interpolation = RigidbodyInterpolation.None; // 关闭插值，防止抖动
 
             gameObject.tag = "Player";
         }
@@ -70,7 +65,7 @@ namespace StarPipe.Gameplay
             if (!ServiceLocator.Has<IAudioConductor>()) return;
             _conductor = ServiceLocator.Get<IAudioConductor>();
             _posX = transform.position.x;
-            _fixedY = transform.position.y; // 初始化时锁定Y
+            _fixedY = transform.position.y;
             if (_rb == null) _rb = GetComponent<Rigidbody>();
             _mapGen = Object.FindObjectOfType<MapGenerator>();
             _initialized = true;
@@ -107,8 +102,7 @@ namespace StarPipe.Gameplay
                 _posX = hw - (_posX - hw);
                 _velocityX = -_velocityX;
                 _posX = Mathf.Clamp(_posX, -hw, hw);
-            }
-            else if (_posX < -hw)
+            }else if (_posX < -hw)
             {
                 _posX = -hw - (_posX + hw);
                 _velocityX = -_velocityX;
