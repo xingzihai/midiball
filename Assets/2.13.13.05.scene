@@ -160,6 +160,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   maxLateralSpeed: 15
   playerRadius: 0.4
+  wallBounceForce: 15
   impulseDecay: 8
 --- !u!23 &373246432
 MeshRenderer:

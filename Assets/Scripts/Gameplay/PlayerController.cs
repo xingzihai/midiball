@@ -12,11 +12,10 @@ namespace StarPipe.Gameplay
     public class PlayerController : MonoBehaviour
     {
         [Header("横向控制")]
-        [SerializeField] private float maxLateralSpeed = 35f;
+        [SerializeField] private float maxLateralSpeed = 50f; // 35→50，全宽穿越140ms
         [SerializeField] private float playerRadius = 0.4f;
 
         [Header("管道壁反弹")]
-        [Tooltip("撞墙后反弹冲量强度")]
         [SerializeField] private float wallBounceForce = 15f;
 
         [Header("外部冲量")]
@@ -43,17 +42,15 @@ namespace StarPipe.Gameplay
 
             float dt = Time.deltaTime;
             float inputVelocity = Input.GetAxis("Horizontal") * maxLateralSpeed;
-            // 输入方向与冲量反向时清零冲量
-            if (Mathf.Abs(inputVelocity) > 0.1f &&
-                Mathf.Sign(inputVelocity) != Mathf.Sign(_impulseVelocity))
-                _impulseVelocity = 0f;
+            if (Mathf.Abs(inputVelocity) > 0.1f &&Mathf.Sign(inputVelocity) != Mathf.Sign(_impulseVelocity))_impulseVelocity =0f;
             _impulseVelocity = Mathf.MoveTowards(_impulseVelocity, 0f, impulseDecay * dt);
             _posX += (inputVelocity + _impulseVelocity) * dt;
-            // 管道壁反弹检测
+            // 管道壁反弹
             float hw = GameConstants.TRACK_HALF_WIDTH;
             if (_posX > hw){
-                _posX = hw - (_posX - hw); // 镜像弹回
-                _impulseVelocity = -wallBounceForce; // 反向冲量_posX = Mathf.Clamp(_posX, -hw, hw);
+                _posX = hw - (_posX - hw);
+                _impulseVelocity = -wallBounceForce;
+                _posX = Mathf.Clamp(_posX, -hw, hw);
             }
             else if (_posX < -hw)
             {
@@ -105,5 +102,6 @@ namespace StarPipe.Gameplay
         }
 
         public void ApplyLateralImpulse(float impulse) { _impulseVelocity += impulse; }
-        public float VelocityX => Input.GetAxis("Horizontal") * maxLateralSpeed + _impulseVelocity;}
+        public float VelocityX => Input.GetAxis("Horizontal") * maxLateralSpeed + _impulseVelocity;
+    }
 }
