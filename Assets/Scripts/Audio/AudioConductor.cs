@@ -1,6 +1,4 @@
 // AudioConductor.cs — 核心音频控制器，dspTime驱动 + 分轨播放管理
-// 挂载到场景中的空GameObject上，Awake时自动注册到ServiceLocator
-// 关键：dspTime按音频缓冲块更新，帧间用deltaTime插值平滑
 using UnityEngine;
 using StarPipe.Core;
 
@@ -79,21 +77,29 @@ namespace StarPipe.Audio
 
         public void LoadSong(string fileName)
         {
-            string fullPath = System.IO.Path.Combine(
-                Application.dataPath, "Resources", "MIDI", fileName);
+            string midiDir = System.IO.Path.Combine(Application.dataPath, "Resources", "MIDI");
+            string fullPath = System.IO.Path.Combine(midiDir, fileName);
 
+            // 回退逻辑：优先加载指定文件，不存在则尝试时间煮雨.mid
             if (!System.IO.File.Exists(fullPath))
             {
-                Debug.LogWarning($"[AudioConductor] MIDI文件不存在: {fullPath}，使用程序化生成");
-                _songData = MidiParser.GenerateTestNotes(500);
-                return;
+                string fallback = System.IO.Path.Combine(midiDir, "时间煮雨.mid");
+                if (System.IO.File.Exists(fallback))
+                {
+                    Debug.LogWarning($"[AudioConductor] {fileName}不存在，回退到时间煮雨.mid");
+                    fullPath = fallback;
+                }else
+                {
+                    Debug.LogWarning($"[AudioConductor] 无MIDI文件，使用程序化生成");
+                    _songData = MidiParser.GenerateTestNotes(500);
+                    return;
+                }
             }
-            // 直接使用真实MIDI数据
             _songData = MidiParser.Parse(fullPath);
-            Debug.Log($"[AudioConductor] 歌曲加载完成: {_songData.songName} | " +
-                      $"音符数={_songData.allNotes.Length} | 时长={_songData.totalDuration:F2}s | " +
-                      $"Melody={_songData.melodyNotes.Length} Drums={_songData.drumsNotes.Length} " +
-                      $"Bass={_songData.bassNotes.Length} Chords={_songData.chordsNotes.Length}");
+            Debug.Log($"[AudioConductor] 歌曲加载: {_songData.songName} | " +
+                      $"总音符={_songData.allNotes.Length} 时长={_songData.totalDuration:F1}s | " +
+                      $"M={_songData.melodyNotes.Length} D={_songData.drumsNotes.Length} " +
+                      $"B={_songData.bassNotes.Length} C={_songData.chordsNotes.Length}");
         }
 
         public void Play()
@@ -105,10 +111,7 @@ namespace StarPipe.Audio
             _lastDspTime = 0;
             _isPlaying = true;
             for (int i = 0; i < _stems.Length; i++)
-            {
-                if (_stems[i].clip != null)
-                    _stems[i].PlayScheduled(scheduleTime);
-            }
+                if (_stems[i].clip != null) _stems[i].PlayScheduled(scheduleTime);
             Debug.Log($"[AudioConductor] 播放开始 | dspStart={_dspStartTime:F4}");
             EventBus.OnGameStateChanged?.Invoke(GameState.Playing);
         }
@@ -118,8 +121,7 @@ namespace StarPipe.Audio
             if (!_isPlaying) return;
             _isPlaying = false;
             _pauseTime = _smoothTime;
-            foreach (var s in _stems)
-                if (s.isPlaying) s.Pause();
+            foreach (var s in _stems) if (s.isPlaying) s.Pause();
             EventBus.OnGameStateChanged?.Invoke(GameState.Paused);
         }
 
