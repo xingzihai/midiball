@@ -1,6 +1,6 @@
-// PlayerController.cs — 玩家运动学控制器（平滑直接映射模型）
-// Z轴：dspTime驱动，X轴：输入映射目标速度 + 平滑过渡
-// 核心：方向即时响应，速度平滑过渡，松手快速刹停
+// PlayerController.cs — 玩家运动学控制器（Lerp比例式平滑模型）
+// Z轴：dspTime驱动，X轴：输入映射目标速度 + Lerp比例过渡
+// 核心：差距大=响应快（方向切换），差距小=精确（微调），松手=自然减速
 using UnityEngine;
 using StarPipe.Core;
 using StarPipe.Audio;
@@ -13,10 +13,8 @@ namespace StarPipe.Gameplay
     {
         [Header("横向控制参数")]
         [SerializeField] private float maxLateralSpeed = 35f;
-        [Tooltip("加速平滑率：越大越快到达目标速度")]
-        [SerializeField] private float accelSmooth = 120f;
-        [Tooltip("刹车平滑率：松手后减速到0的速率，应大于accelSmooth")]
-        [SerializeField] private float brakeSmooth = 200f;
+        [Tooltip("速度跟随率：越大响应越快，15~25为推荐范围")]
+        [SerializeField] private float followRate = 20f;
         [Tooltip("摇杆死区")]
         [SerializeField] private float deadZone = 0.05f;
         [Tooltip("响应曲线幂次（仅对模拟摇杆有效）")]
@@ -31,7 +29,7 @@ namespace StarPipe.Gameplay
         private MapGenerator _mapGen;
         private float _posX;
         private float _fixedY;
-        private float _currentVelocityX; // 当前实际横向速度（平滑后）
+        private float _currentVelocityX; // 当前实际横向速度
         private float _impulseVelocity;// 外部冲量独立通道
         private bool _initialized;
 
@@ -47,16 +45,19 @@ namespace StarPipe.Gameplay
             if (!_initialized || _conductor == null) return;
 
             float dt = Time.deltaTime;
-            // 计算目标速度（输入直接映射）
             float targetVelocity = ComputeTargetVelocity();
-            // 平滑过渡：加速用accelSmooth，刹车用brakeSmooth（松手快停）
-            float smoothRate = Mathf.Abs(targetVelocity) > 0.01f ? accelSmooth : brakeSmooth;
-            _currentVelocityX = Mathf.MoveTowards(_currentVelocityX, targetVelocity, smoothRate * dt);
+            // Lerp比例式过渡：差距大变化快，差距小变化慢
+            // 方向切换时差距=70(35到-35)，变化量=70*20*dt≈23/帧(60fps)，约3帧完成
+            // 松手时差距=35(35到0)，变化量=35*20*dt≈11.7/帧，约3帧完成
+            // 微调时差距小，变化量小，天然精确
+            _currentVelocityX = Mathf.Lerp(_currentVelocityX, targetVelocity, followRate * dt);
+            // 接近零时直接归零，避免无限趋近的微小抖动
+            if (Mathf.Abs(targetVelocity) < 0.01f && Mathf.Abs(_currentVelocityX) < 0.5f)
+                _currentVelocityX = 0f;
             // 外部冲量独立衰减
             _impulseVelocity = Mathf.MoveTowards(_impulseVelocity, 0f, impulseDecay * dt);
             // 合成位移
             _posX += (_currentVelocityX + _impulseVelocity) * dt;
-            // 边界硬夹紧
             float hw = GameConstants.TRACK_HALF_WIDTH;
             _posX = Mathf.Clamp(_posX, -hw, hw);
 
@@ -66,17 +67,16 @@ namespace StarPipe.Gameplay
         }
 
         /// <summary>
-        /// 计算目标速度：死区过滤 + 响应曲线 + 方向映射
-        /// 键盘：GetAxisRaw返回-1/0/1，曲线无效果，直接满速
+        /// 目标速度：死区过滤 + 响应曲线
+        /// 键盘：-1/0/1直接映射满速，Lerp负责平滑过渡
         /// 摇杆：连续值经曲线后精确控制
         /// </summary>
         private float ComputeTargetVelocity()
         {
             float raw = Input.GetAxisRaw("Horizontal");
-            if (Mathf.Abs(raw) < deadZone) return 0f;
+            if (Mathf.Abs(raw)< deadZone) return 0f;
             float sign = Mathf.Sign(raw);
             float mag = (Mathf.Abs(raw) - deadZone) / (1f - deadZone);
-            //幂次曲线（对摇杆有效，键盘mag≈1所以无影响）
             float curved = Mathf.Pow(mag, responseCurve);
             return sign * curved * maxLateralSpeed;
         }
@@ -106,7 +106,7 @@ namespace StarPipe.Gameplay
             _initialized = true;
         }
 
-        /// <summary>手动碰撞检测，遍历活跃挡板</summary>
+        /// <summary>手动碰撞检测</summary>
         private void CheckManualCollisions()
         {
             if (_mapGen == null) return;
@@ -118,7 +118,6 @@ namespace StarPipe.Gameplay
             }
         }
 
-        /// <summary>外部冲量接口（挡板反弹等）</summary>
         public void ApplyLateralImpulse(float impulse) { _impulseVelocity += impulse; }
         public float VelocityX => _currentVelocityX + _impulseVelocity;}
 }
