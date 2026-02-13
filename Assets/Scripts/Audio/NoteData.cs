@@ -32,7 +32,7 @@ namespace StarPipe.Audio
     }
 
     /// <summary>
-    ///一首歌曲的完整解析结果
+    /// 一首歌曲的完整解析结果
     /// </summary>
     public class SongData
     {
@@ -41,7 +41,8 @@ namespace StarPipe.Audio
         public double totalDuration;       // 歌曲总时长（秒）
         public NoteData[] allNotes;        // 所有音符（按时间排序）
         public NoteData[] melodyNotes;     // 主旋律轨道
-        public NoteData[] drumsNotes;      //鼓组轨道
+        public NoteData[] drumsNotes;      // 鼓组轨道
         public NoteData[] bassNotes;       // 贝斯轨道
-        public NoteData[] chordsNotes;     // 和弦轨道}
+        public NoteData[] chordsNotes;     // 和弦轨道
+    }
 }
