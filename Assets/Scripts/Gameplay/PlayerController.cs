@@ -1,6 +1,6 @@
 // PlayerController.cs —玩家运动学控制器（直接映射模型）
 // Z轴：dspTime驱动，X轴：Input.GetAxis直接映射速度
-// 管道壁反弹：碰到边界时速度反向+位置镜像弹回
+// 管道壁反弹 +冲量系统（有输入时冲量不干扰）
 using UnityEngine;
 using StarPipe.Core;
 using StarPipe.Audio;
@@ -12,7 +12,7 @@ namespace StarPipe.Gameplay
     public class PlayerController : MonoBehaviour
     {
         [Header("横向控制")]
-        [SerializeField] private float maxLateralSpeed = 50f; // 35→50，全宽穿越140ms
+        [SerializeField] private float maxLateralSpeed = 50f;
         [SerializeField] private float playerRadius = 0.4f;
 
         [Header("管道壁反弹")]
@@ -41,13 +41,19 @@ namespace StarPipe.Gameplay
             if (!_initialized || _conductor == null) return;
 
             float dt = Time.deltaTime;
-            float inputVelocity = Input.GetAxis("Horizontal") * maxLateralSpeed;
-            if (Mathf.Abs(inputVelocity) > 0.1f &&Mathf.Sign(inputVelocity) != Mathf.Sign(_impulseVelocity))_impulseVelocity =0f;
-            _impulseVelocity = Mathf.MoveTowards(_impulseVelocity, 0f, impulseDecay * dt);
+            float rawInput = Input.GetAxis("Horizontal");
+            float inputVelocity = rawInput * maxLateralSpeed;
+            bool hasInput = Mathf.Abs(rawInput) > 0.05f;
+            // 有输入时：冲量立即清零，输入完全主导
+            // 无输入时：冲量自然衰减驱动运动（反弹滑行）
+            if (hasInput)_impulseVelocity =0f;
+            else
+                _impulseVelocity = Mathf.MoveTowards(_impulseVelocity, 0f, impulseDecay * dt);
             _posX += (inputVelocity + _impulseVelocity) * dt;
             // 管道壁反弹
             float hw = GameConstants.TRACK_HALF_WIDTH;
-            if (_posX > hw){
+            if (_posX > hw)
+            {
                 _posX = hw - (_posX - hw);
                 _impulseVelocity = -wallBounceForce;
                 _posX = Mathf.Clamp(_posX, -hw, hw);
