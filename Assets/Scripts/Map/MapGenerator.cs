@@ -11,8 +11,8 @@ namespace StarPipe.Map
     {
         [Header("对象池配置")]
         [SerializeField] private int poolSize = 1000;
-        // 横向挡板：宽(X)=从墙向内延伸长度, 高(Y),厚(Z)
-        [SerializeField] private Vector3 noteScale = new Vector3(3.0f, 0.6f, 0.3f);
+        // 横向挡板：宽(X)=从墙向内延伸长度, 高(Y), 厚(Z)加大防穿透
+        [SerializeField] private Vector3 noteScale = new Vector3(3.0f, 0.6f, 2.0f);
 
         [Header("可视范围（Z轴前方多远开始显示）")]
         [SerializeField] private float spawnAhead = 80f;
@@ -70,15 +70,13 @@ namespace StarPipe.Map
 
         /// <summary>
         /// 计算横向挡板的X位置：从墙壁向内延伸
-        /// 挡板中心 = 墙壁位置 - 挡板半宽（右侧）或+ 挡板半宽（左侧）
         /// </summary>
         private float CalcBarCenterX(float noteX)
         {
             float halfBar = noteScale.x * 0.5f;
             float hw = GameConstants.TRACK_HALF_WIDTH;
-            if (noteX > 0) // 右侧墙壁：挡板从右墙向左延伸
-                return hw - halfBar;
-            else           // 左侧墙壁：挡板从左墙向右延伸
+            if (noteX > 0)return hw - halfBar;
+            else
                 return -hw + halfBar;
         }
 
@@ -95,7 +93,6 @@ namespace StarPipe.Map
                     float rawX = _notes[_nextSpawnIndex].xPosition;
                     float barX = CalcBarCenterX(rawX);
                     Vector3 pos = new Vector3(barX, 0.5f, noteZ);
-                    // 记录挡板朝向（从哪侧墙壁延伸）
                     marker.Reset(_nextSpawnIndex, pos, rawX > 0);
                     _activeMarkers.Add(marker);
                 }
