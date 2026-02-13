@@ -9,7 +9,7 @@ namespace StarPipe.Audio
     public class AudioConductor : MonoBehaviour, IAudioConductor
     {
         [Header("MIDI配置")]
-        [SerializeField] private string midiFileName = "test.mid";
+        [SerializeField] private string midiFileName = "时间煮雨.mid";
         [SerializeField] private bool autoPlayOnStart = true;
 
         [Header("音频分轨（可选，无文件时静默模式）")]
@@ -54,7 +54,8 @@ namespace StarPipe.Audio
             {
                 _smoothTime = _songTime;
                 _lastDspTime = currentDsp;
-            }else
+            }
+            else
             {
                 _smoothTime += Time.deltaTime;
             }
@@ -87,7 +88,7 @@ namespace StarPipe.Audio
                 _songData = MidiParser.GenerateTestNotes(500);
                 return;
             }
-            // 直接使用真实MIDI数据，不再因音符数不足而丢弃
+            // 直接使用真实MIDI数据
             _songData = MidiParser.Parse(fullPath);
             Debug.Log($"[AudioConductor] 歌曲加载完成: {_songData.songName} | " +
                       $"音符数={_songData.allNotes.Length} | 时长={_songData.totalDuration:F2}s | " +
