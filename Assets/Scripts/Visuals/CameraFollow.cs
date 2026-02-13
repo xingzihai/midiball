@@ -11,7 +11,7 @@ namespace StarPipe.Visuals
     {
         [Header("跟随参数")]
         [SerializeField] private Vector3 offset = new Vector3(0, 4f, -12f);
-        [SerializeField] private float xSmoothTime = 0.15f;  // X轴SmoothDamp时间
+        [SerializeField] private float xSmoothTime = 0.06f;  // 降低延迟，配合直接速度映射
         [SerializeField] private float lookAheadZ = 5f;       // 视线前方偏移
 
         private Transform _target;
