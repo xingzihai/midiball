@@ -159,9 +159,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   maxLateralSpeed: 15
-  followRate: 20
-  deadZone: 0.05
-  responseCurve: 2
   playerRadius: 0.4
   impulseDecay: 8
 --- !u!23 &373246432

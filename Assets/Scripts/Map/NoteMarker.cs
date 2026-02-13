@@ -13,7 +13,7 @@ namespace StarPipe.Map
         public bool isRightSide;
 
         [Header("反弹参数")]
-        [SerializeField] private float bounceForce = 18f;
+        [SerializeField] private float bounceForce = 8f; // 削弱：18→8
 
         private Renderer _renderer;
         private BoxCollider _collider;
@@ -34,7 +34,8 @@ namespace StarPipe.Map
             isActive = true;
             isRightSide = rightSide;
             transform.position = pos;
-            gameObject.SetActive(true);if (_renderer != null) _renderer.material.color = ColorDefault;
+            gameObject.SetActive(true);
+            if (_renderer != null) _renderer.material.color = ColorDefault;
         }
 
         /// <summary>物理Trigger回调</summary>
@@ -50,9 +51,7 @@ namespace StarPipe.Map
         public bool ManualCollisionCheck(Transform playerTf, float playerRadius)
         {
             if (!isActive || isJudged || _collider == null) return false;
-            // 获取挡板的世界空间AABB
             Bounds b = _collider.bounds;
-            //扩展bounds以包含球体半径
             b.Expand(playerRadius * 2f);
             return b.Contains(playerTf.position);
         }
@@ -63,7 +62,7 @@ namespace StarPipe.Map
             float dir = isRightSide ? -1f : 1f;
             player.ApplyLateralImpulse(dir * bounceForce);
             SetHit();
-            if (NoteJudge.Instance != null)NoteJudge.Instance.NotifyHit(noteIndex);Debug.Log($"[NoteMarker] 碰撞反弹 #{noteIndex} | dir={dir}");
+            if (NoteJudge.Instance != null) NoteJudge.Instance.NotifyHit(noteIndex);Debug.Log($"[NoteMarker] 碰撞反弹 #{noteIndex} | dir={dir}");
         }
 
         public void SetHit()

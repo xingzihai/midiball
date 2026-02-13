@@ -16,7 +16,7 @@ namespace StarPipe.Gameplay
         [SerializeField] private float playerRadius = 0.4f;
 
         [Header("外部冲量")]
-        [SerializeField] private float impulseDecay = 8.0f;
+        [SerializeField] private float impulseDecay = 20f; // 加速衰减：8→20
 
         private IAudioConductor _conductor;
         private Rigidbody _rb;
@@ -38,17 +38,15 @@ namespace StarPipe.Gameplay
             if (!_initialized || _conductor == null) return;
 
             float dt = Time.deltaTime;
-            // 直接映射：GetAxis已含Unity内置平滑(sensitivity=50,gravity=50,snap=true)
-            // 按键约1帧到满值，松手约1帧归零，方向切换瞬间归零再反向
             float inputVelocity = Input.GetAxis("Horizontal") * maxLateralSpeed;
-            // 外部冲量独立衰减
             _impulseVelocity = Mathf.MoveTowards(_impulseVelocity, 0f, impulseDecay * dt);
             _posX += (inputVelocity + _impulseVelocity) * dt;
             float hw = GameConstants.TRACK_HALF_WIDTH;
             _posX = Mathf.Clamp(_posX, -hw, hw);
 
             float z = (float)_conductor.SongTime * GameConstants.SCROLL_SPEED;
-            transform.position = new Vector3(_posX, _fixedY, z);CheckManualCollisions();
+            transform.position = new Vector3(_posX, _fixedY, z);
+            CheckManualCollisions();
         }
 
         private void EnsureCollisionComponents()
@@ -89,5 +87,6 @@ namespace StarPipe.Gameplay
         }
 
         public void ApplyLateralImpulse(float impulse) { _impulseVelocity += impulse; }
-        public float VelocityX => Input.GetAxis("Horizontal") * maxLateralSpeed + _impulseVelocity;}
+        public float VelocityX => Input.GetAxis("Horizontal") * maxLateralSpeed + _impulseVelocity;
+    }
 }
