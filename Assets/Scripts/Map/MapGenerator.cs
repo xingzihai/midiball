@@ -11,10 +11,10 @@ namespace StarPipe.Map
     {
         [Header("对象池配置")]
         [SerializeField] private int poolSize = 1000;
-        // 发声器薄墙：薄(X=0.15面向管道内), 高(Y=1.5), 长(Z=5.0沿球前进方向)
-        [SerializeField] private Vector3 noteScale = new Vector3(0.15f, 1.5f, 5.0f);
+        // 发声器薄墙：薄(X=0.15), 高(Y=1.5), Z=2.0（缩短碰撞窗口）
+        [SerializeField] private Vector3 noteScale = new Vector3(0.15f, 1.5f, 2.0f);
 
-        [Header("可视范围（Z轴前方多远开始显示）")]
+        [Header("可视范围")]
         [SerializeField] private float spawnAhead = 80f;
         [SerializeField] private float despawnBehind = 10f;
 
@@ -45,7 +45,8 @@ namespace StarPipe.Map
             _notes = _conductor.CurrentSongData.allNotes;
             _nextSpawnIndex = 0;
             InitPool();
-            _initialized = true;Debug.Log($"[MapGenerator] 初始化完成 | 音符数={_notes.Length} | 池大小={poolSize}");
+            _initialized = true;
+            Debug.Log($"[MapGenerator] 初始化完成 | 音符数={_notes.Length} | 池大小={poolSize}");
         }
 
         private void InitPool()
@@ -71,9 +72,7 @@ namespace StarPipe.Map
         {
             float hw = GameConstants.TRACK_HALF_WIDTH;
             float halfThick = noteScale.x * 0.5f;
-            // 右侧墙壁：内边缘贴着轨道边界
             if (noteX > 0) return hw - halfThick;
-            // 左侧墙壁
             else return -hw + halfThick;
         }
 
@@ -89,7 +88,6 @@ namespace StarPipe.Map
                     var marker = _pool.Dequeue();
                     float rawX = _notes[_nextSpawnIndex].xPosition;
                     float wallX = CalcWallX(rawX);
-                    // Y=0.75让发声器底部贴地(高度1.5，中心在0.75)
                     Vector3 pos = new Vector3(wallX, 0.75f, noteZ);
                     marker.Reset(_nextSpawnIndex, pos, rawX > 0);
                     _activeMarkers.Add(marker);
@@ -104,7 +102,7 @@ namespace StarPipe.Map
             float recycleZ = playerZ - despawnBehind;
             for (int i = _activeMarkers.Count - 1; i >= 0; i--)
             {
-                if (_activeMarkers[i].transform.position.z< recycleZ)
+                if (_activeMarkers[i].transform.position.z < recycleZ)
                 {
                     _activeMarkers[i].Recycle();
                     _pool.Enqueue(_activeMarkers[i]);

@@ -1,5 +1,5 @@
-// NoteMarker.cs — 横向发声器挡板 +碰撞反弹（双重检测）
-// OnTriggerEnter +手动AABB检测，防止高速穿透
+// NoteMarker.cs — 横向发声器挡板 + 精确碰撞检测
+// 使用球心到bounds距离检测替代AABB扩展，消除双重检测竞态
 using UnityEngine;
 using StarPipe.Gameplay;
 
@@ -13,7 +13,7 @@ namespace StarPipe.Map
         public bool isRightSide;
 
         [Header("反弹参数")]
-        [SerializeField] private float bounceForce = 8f; // 削弱：18→8
+        [SerializeField] private float bounceForce = 8f;
 
         private Renderer _renderer;
         private BoxCollider _collider;
@@ -34,26 +34,18 @@ namespace StarPipe.Map
             isActive = true;
             isRightSide = rightSide;
             transform.position = pos;
-            gameObject.SetActive(true);
-            if (_renderer != null) _renderer.material.color = ColorDefault;
+            gameObject.SetActive(true);if (_renderer != null) _renderer.material.color = ColorDefault;
         }
 
-        /// <summary>物理Trigger回调</summary>
-        void OnTriggerEnter(Collider other)
-        {
-            if (!isActive || isJudged) return;
-            if (!other.CompareTag("Player")) return;
-            var player = other.GetComponent<PlayerController>();
-            if (player != null) DoBounce(player);
-        }
+        // 移除OnTriggerEnter，统一用ManualCollisionCheck避免双重触发
 
-        /// <summary>手动AABB碰撞检测（防止高速穿透）</summary>
+        /// <summary>精确碰撞：球心到bounds的距离 < 球半径</summary>
         public bool ManualCollisionCheck(Transform playerTf, float playerRadius)
         {
-            if (!isActive || isJudged || _collider == null) return false;
-            Bounds b = _collider.bounds;
-            b.Expand(playerRadius * 2f);
-            return b.Contains(playerTf.position);
+            if (!isActive || isJudged || _collider == null) return false;Bounds b = _collider.bounds;
+            // SqrDistance：点在bounds内返回0，在外返回最近点距离的平方
+            float sqrDist = b.SqrDistance(playerTf.position);
+            return sqrDist < playerRadius * playerRadius;
         }
 
         public void DoBounce(PlayerController player)
@@ -62,7 +54,7 @@ namespace StarPipe.Map
             float dir = isRightSide ? -1f : 1f;
             player.ApplyLateralImpulse(dir * bounceForce);
             SetHit();
-            if (NoteJudge.Instance != null) NoteJudge.Instance.NotifyHit(noteIndex);Debug.Log($"[NoteMarker] 碰撞反弹 #{noteIndex} | dir={dir}");
+            if (NoteJudge.Instance != null) NoteJudge.Instance.NotifyHit(noteIndex);
         }
 
         public void SetHit()
