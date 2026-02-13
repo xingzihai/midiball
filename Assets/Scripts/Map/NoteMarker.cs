@@ -1,5 +1,5 @@
 // NoteMarker.cs — 横向发声器挡板 + 精确碰撞检测
-// 使用球心到bounds距离检测替代AABB扩展，消除双重检测竞态
+//碰撞只触发判定和视觉反馈，不施加反弹冲量
 using UnityEngine;
 using StarPipe.Gameplay;
 
@@ -11,9 +11,6 @@ namespace StarPipe.Map
         public bool isJudged;
         public bool isActive;
         public bool isRightSide;
-
-        [Header("反弹参数")]
-        [SerializeField] private float bounceForce = 8f;
 
         private Renderer _renderer;
         private BoxCollider _collider;
@@ -34,25 +31,24 @@ namespace StarPipe.Map
             isActive = true;
             isRightSide = rightSide;
             transform.position = pos;
-            gameObject.SetActive(true);if (_renderer != null) _renderer.material.color = ColorDefault;
+            gameObject.SetActive(true);
+            if (_renderer != null) _renderer.material.color = ColorDefault;
         }
 
-        // 移除OnTriggerEnter，统一用ManualCollisionCheck避免双重触发
-
-        /// <summary>精确碰撞：球心到bounds的距离 < 球半径</summary>
+        /// <summary>精确碰撞：球心到bounds距离 < 球半径</summary>
         public bool ManualCollisionCheck(Transform playerTf, float playerRadius)
         {
-            if (!isActive || isJudged || _collider == null) return false;Bounds b = _collider.bounds;
-            // SqrDistance：点在bounds内返回0，在外返回最近点距离的平方
+            if (!isActive || isJudged || _collider == null) return false;
+            Bounds b = _collider.bounds;
             float sqrDist = b.SqrDistance(playerTf.position);
             return sqrDist < playerRadius * playerRadius;
         }
 
+        /// <summary>碰撞处理：只判定+视觉，不反弹</summary>
         public void DoBounce(PlayerController player)
         {
             if (isJudged) return;
-            float dir = isRightSide ? -1f : 1f;
-            player.ApplyLateralImpulse(dir * bounceForce);
+            // 不施加冲量，只触发判定
             SetHit();
             if (NoteJudge.Instance != null) NoteJudge.Instance.NotifyHit(noteIndex);
         }
