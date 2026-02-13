@@ -1,5 +1,5 @@
-// MapGenerator.cs — 根据MIDI数据生成横向发声器挡板（对象池管理）
-// 发声器从墙壁向内延伸，小球碰撞后反弹
+// MapGenerator.cs — 根据MIDI数据生成墙壁式发声器（对象池管理）
+// 发声器竖立在管道两侧，小球碰撞后反弹
 using System.Collections.Generic;
 using UnityEngine;
 using StarPipe.Core;
@@ -11,8 +11,8 @@ namespace StarPipe.Map
     {
         [Header("对象池配置")]
         [SerializeField] private int poolSize = 1000;
-        // 横向挡板：宽(X)=从墙向内延伸长度, 高(Y), 厚(Z)加大防穿透
-        [SerializeField] private Vector3 noteScale = new Vector3(3.0f, 0.6f, 2.0f);
+        //墙壁式发声器：薄(X=0.5), 高(Y=2.0), 厚(Z=2.0防穿透)
+        [SerializeField] private Vector3 noteScale = new Vector3(0.5f, 2.0f, 2.0f);
 
         [Header("可视范围（Z轴前方多远开始显示）")]
         [SerializeField] private float spawnAhead = 80f;
@@ -45,8 +45,7 @@ namespace StarPipe.Map
             _notes = _conductor.CurrentSongData.allNotes;
             _nextSpawnIndex = 0;
             InitPool();
-            _initialized = true;
-            Debug.Log($"[MapGenerator] 初始化完成 | 音符数={_notes.Length} | 池大小={poolSize}");
+            _initialized = true;Debug.Log($"[MapGenerator] 初始化完成 | 音符数={_notes.Length} | 池大小={poolSize}");
         }
 
         private void InitPool()
@@ -58,7 +57,6 @@ namespace StarPipe.Map
                 var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
                 cube.transform.SetParent(_poolParent);
                 cube.transform.localScale = noteScale;
-                // 保留BoxCollider作为Trigger用于碰撞检测
                 var col = cube.GetComponent<BoxCollider>();
                 if (col != null) col.isTrigger = true;
                 cube.layer = LayerMask.NameToLayer("Default");
@@ -68,16 +66,15 @@ namespace StarPipe.Map
             }
         }
 
-        /// <summary>
-        /// 计算横向挡板的X位置：从墙壁向内延伸
-        /// </summary>
-        private float CalcBarCenterX(float noteX)
+        /// <summary>墙壁紧贴管道边缘放置</summary>
+        private float CalcWallX(float noteX)
         {
-            float halfBar = noteScale.x * 0.5f;
             float hw = GameConstants.TRACK_HALF_WIDTH;
-            if (noteX > 0)return hw - halfBar;
-            else
-                return -hw + halfBar;
+            float halfThick = noteScale.x * 0.5f;
+            // 右侧墙壁：内边缘贴着轨道边界
+            if (noteX > 0) return hw - halfThick;
+            // 左侧墙壁
+            else return -hw + halfThick;
         }
 
         private void SpawnNotes(float playerZ)
@@ -91,8 +88,9 @@ namespace StarPipe.Map
                 {
                     var marker = _pool.Dequeue();
                     float rawX = _notes[_nextSpawnIndex].xPosition;
-                    float barX = CalcBarCenterX(rawX);
-                    Vector3 pos = new Vector3(barX, 0.5f, noteZ);
+                    float wallX = CalcWallX(rawX);
+                    // Y=1.0让墙壁底部贴地(高度2.0，中心在1.0)
+                    Vector3 pos = new Vector3(wallX, 1.0f, noteZ);
                     marker.Reset(_nextSpawnIndex, pos, rawX > 0);
                     _activeMarkers.Add(marker);
                 }
@@ -106,7 +104,7 @@ namespace StarPipe.Map
             float recycleZ = playerZ - despawnBehind;
             for (int i = _activeMarkers.Count - 1; i >= 0; i--)
             {
-                if (_activeMarkers[i].transform.position.z < recycleZ)
+                if (_activeMarkers[i].transform.position.z< recycleZ)
                 {
                     _activeMarkers[i].Recycle();
                     _pool.Enqueue(_activeMarkers[i]);
