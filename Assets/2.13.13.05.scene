@@ -617,7 +617,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   poolSize: 200
-  noteScale: {x: 0.8, y: 1.5, z: 2}
+  noteScale: {x: 0.15, y: 1.5, z: 5}
   spawnAhead: 80
   despawnBehind: 10
 --- !u!4 &1984141648
