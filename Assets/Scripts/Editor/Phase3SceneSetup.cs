@@ -56,9 +56,9 @@ namespace StarPipe.Editor
             var scaleProp = so.FindProperty("noteScale");
             if (scaleProp != null)
             {
-                scaleProp.vector3Value = new Vector3(0.5f, 2.0f, 2.0f);
+                scaleProp.vector3Value = new Vector3(1.5f, 0.8f, 2.0f);
                 so.ApplyModifiedProperties();
-                Debug.Log("[SceneSetup] noteScale 已设为墙壁式 (0.5, 2.0, 2.0)");
+                Debug.Log("[SceneSetup] noteScale 已设为 (1.5, 0.8, 2.0)");
             }
 
             // --- NoteJudge ---
