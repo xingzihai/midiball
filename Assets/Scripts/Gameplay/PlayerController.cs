@@ -1,6 +1,5 @@
-// PlayerController.cs — 玩家运动学控制器（直接映射+独立冲量）
-// Z轴：dspTime驱动，X轴：Input.GetAxis直接映射速度
-//冲量独立衰减，不被输入清零；管道壁硬夹紧不反弹
+// PlayerController.cs —玩家运动学控制器（零延迟直接映射）
+// Z轴：dspTime驱动，X轴：GetAxisRaw直接映射速度，零平滑零延迟
 using UnityEngine;
 using StarPipe.Core;
 using StarPipe.Audio;
@@ -12,10 +11,10 @@ namespace StarPipe.Gameplay
     public class PlayerController : MonoBehaviour
     {
         [Header("横向控制")]
-        [SerializeField] private float maxLateralSpeed = 70f; // 50→70，全宽穿越100ms
+        [SerializeField] private float maxLateralSpeed = 70f;
         [SerializeField] private float playerRadius = 0.4f;
 
-        [Header("外部冲量（发声器反弹等）")]
+        [Header("外部冲量")]
         [SerializeField] private float impulseDecay = 25f;
         [SerializeField] private float maxImpulse = 20f;
 
@@ -39,7 +38,8 @@ namespace StarPipe.Gameplay
             if (!_initialized || _conductor == null) return;
 
             float dt = Time.deltaTime;
-            float inputVelocity = Input.GetAxis("Horizontal") * maxLateralSpeed;
+            // GetAxisRaw：键盘直接返回-1/0/1，零延迟，不依赖InputManager平滑
+            float inputVelocity = Input.GetAxisRaw("Horizontal") * maxLateralSpeed;
             _impulseVelocity = Mathf.MoveTowards(_impulseVelocity, 0f, impulseDecay * dt);
             _posX += (inputVelocity + _impulseVelocity) * dt;
             float hw = GameConstants.TRACK_HALF_WIDTH;
@@ -79,7 +79,6 @@ namespace StarPipe.Gameplay
             _initialized = true;
         }
 
-        /// <summary>手动碰撞检测</summary>
         private void CheckManualCollisions()
         {
             if (_mapGen == null) return;
@@ -91,10 +90,9 @@ namespace StarPipe.Gameplay
             }
         }
 
-        /// <summary>外部冲量，带上限防叠加</summary>
         public void ApplyLateralImpulse(float impulse)
         {
             _impulseVelocity = Mathf.Clamp(_impulseVelocity + impulse, -maxImpulse, maxImpulse);
-        }public float VelocityX => Input.GetAxis("Horizontal") * maxLateralSpeed + _impulseVelocity;
+        }public float VelocityX => Input.GetAxisRaw("Horizontal") * maxLateralSpeed + _impulseVelocity;
     }
 }
