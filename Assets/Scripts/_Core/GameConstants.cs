@@ -15,6 +15,7 @@ namespace StarPipe.Core
 
         // 判定
         public const float HIT_RADIUS = 0.5f;// 音符判定半径
+        public const float JUDGE_TOLERANCE = 0.15f;// 判定时间窗口（秒，前后150ms）
 
         // 游戏机制
         public const int COMBO_TO_UNLOCK = 5;         // 召唤所需连续命中
