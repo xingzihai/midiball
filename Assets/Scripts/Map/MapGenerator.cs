@@ -11,8 +11,8 @@ namespace StarPipe.Map
     {
         [Header("对象池配置")]
         [SerializeField] private int poolSize = 1000;
-        // 发声器竖立：窄(X=0.8), 高(Y=1.5), 长(Z=5.0增大碰撞范围)
-        [SerializeField] private Vector3 noteScale = new Vector3(0.8f, 1.5f, 5.0f);
+        // 发声器薄墙：薄(X=0.15面向管道内), 高(Y=1.5), 长(Z=5.0沿球前进方向)
+        [SerializeField] private Vector3 noteScale = new Vector3(0.15f, 1.5f, 5.0f);
 
         [Header("可视范围（Z轴前方多远开始显示）")]
         [SerializeField] private float spawnAhead = 80f;
