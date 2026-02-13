@@ -10,8 +10,15 @@ namespace StarPipe.Gameplay
     public class NoteJudge : MonoBehaviour
     {
         [Header("反弹参数")]
-        [SerializeField] private float hitBounceForce = 12f; // 命中后向中心的弹射力
+        [SerializeField] private float hitBounceForce = 12f;
 
+        [Header("音效")]
+        [SerializeField] private float hitToneFreq = 880f;   // Hit音调频率(Hz)
+        [SerializeField] private float hitToneDuration = 0.08f;
+        [SerializeField] private float missToneFreq = 220f;
+        [SerializeField] private float missToneDuration = 0.12f;
+
+        private AudioSource _sfxSource;
         private IAudioConductor _conductor;
         private MapGenerator _mapGen;
         private PlayerController _playerCtrl;
@@ -69,6 +76,11 @@ namespace StarPipe.Gameplay
             _notes = _conductor.CurrentSongData.allNotes;
             _nextJudgeIndex = 0;
             _combo = 0;
+            // 初始化音效AudioSource
+            _sfxSource = gameObject.AddComponent<AudioSource>();
+            _sfxSource.playOnAwake = false;
+            _sfxSource.loop = false;
+
             _initialized = true;
             Debug.Log($"[NoteJudge] 初始化完成 | 待判定音符={_notes.Length}");
         }
@@ -87,6 +99,9 @@ namespace StarPipe.Gameplay
                 _playerCtrl.ApplyLateralImpulse(dir * hitBounceForce);
             }
 
+            // 播放Hit音效（根据音高变化频率）
+            PlayTone(hitToneFreq + note.midiNote * 5f, hitToneDuration);
+
             UpdateMarkerState(idx, true);
             EventBus.OnNoteHit?.Invoke(note.noteType, pos);
             EventBus.OnComboChanged?.Invoke(_combo);
@@ -99,10 +114,18 @@ namespace StarPipe.Gameplay
             var note = _notes[idx];
             Vector3 pos = new Vector3(note.xPosition, 0.5f,
                 (float)note.timeInSeconds * GameConstants.SCROLL_SPEED);
+            PlayTone(missToneFreq, missToneDuration,0.3f);
             UpdateMarkerState(idx, false);
             EventBus.OnNoteMiss?.Invoke(pos);
             EventBus.OnComboChanged?.Invoke(0);
             Debug.Log($"[Judge] MISS #{idx} | x={note.xPosition:F1}");
+        }
+
+        private void PlayTone(float freq, float dur, float vol = 0.5f)
+        {
+            if (_sfxSource == null) return;
+            _sfxSource.clip = ToneGenerator.CreateTone(freq, dur, vol);
+            _sfxSource.Play();
         }
 
         private void UpdateMarkerState(int noteIndex, bool isHit)
