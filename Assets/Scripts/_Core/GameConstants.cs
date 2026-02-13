@@ -10,10 +10,10 @@ namespace StarPipe.Core
         public const float EMITTER_MIN_X = 2.5f;     // 发声器最小|X|距离（靠近边缘）
         public const float EMITTER_MAX_X = 4.8f;     // 发声器最大|X|距离
 
-        // 速度参数（待调参）
-        public const float SCROLL_SPEED = 10.0f;
-        public const float FORWARD_SPEED = 10.0f;
-        public const float LATERAL_ACCEL = 30.0f;
+        // 速度参数
+        public const float SCROLL_SPEED = 20.0f;     // Z轴滚动速度（增大=发声器间距更远）
+        public const float FORWARD_SPEED = 20.0f;
+        public const float LATERAL_ACCEL = 60.0f;    // 横向加速度（提高响应速度）
 
         // 判定
         public const float HIT_RADIUS = 0.5f;

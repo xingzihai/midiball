@@ -9,9 +9,9 @@ namespace StarPipe.Gameplay
     public class PlayerController : MonoBehaviour
     {
         [Header("横向物理参数")]
-        [SerializeField] private float lateralAccel = 30f;   // 横向加速度
-        [SerializeField] private float maxLateralSpeed = 15f; // 横向最大速度
-        [SerializeField] private float damping = 0.95f;       // 无输入时速度衰减
+        [SerializeField] private float lateralAccel = 60f;   // 横向加速度
+        [SerializeField] private float maxLateralSpeed = 25f; // 横向最大速度
+        [SerializeField] private float damping = 0.92f;       // 无输入时速度衰减
 
         //内部状态
         private IAudioConductor _conductor;
