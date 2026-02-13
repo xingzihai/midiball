@@ -23,6 +23,7 @@ namespace StarPipe.Gameplay
         private MapGenerator _mapGen;
         private float _velocityX;
         private float _posX;
+        private float _fixedY; // 锁定Y轴，防止漂移抖动
         private bool _initialized;
 
         void Start()
@@ -44,7 +45,8 @@ namespace StarPipe.Gameplay
         {
             if (!_initialized || _conductor == null || _rb == null) return;
             float z = (float)_conductor.SongTime * GameConstants.SCROLL_SPEED;
-            _rb.MovePosition(new Vector3(_posX, transform.position.y, z));
+            // 使用_fixedY锁定Y轴，避免每帧读取transform.position.y导致漂移
+            _rb.MovePosition(new Vector3(_posX, _fixedY, z));
         }
 
         private void EnsureCollisionComponents()
@@ -68,6 +70,7 @@ namespace StarPipe.Gameplay
             if (!ServiceLocator.Has<IAudioConductor>()) return;
             _conductor = ServiceLocator.Get<IAudioConductor>();
             _posX = transform.position.x;
+            _fixedY = transform.position.y; // 初始化时锁定Y
             if (_rb == null) _rb = GetComponent<Rigidbody>();
             _mapGen = Object.FindObjectOfType<MapGenerator>();
             _initialized = true;
