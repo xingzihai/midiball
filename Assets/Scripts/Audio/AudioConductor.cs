@@ -11,8 +11,6 @@ namespace StarPipe.Audio
         [Header("MIDI配置")]
         [SerializeField] private string midiFileName = "test.mid";
         [SerializeField] private bool autoPlayOnStart = true;
-        [Header("音符不足时自动生成的目标数量")]
-        [SerializeField] private int minNoteCount = 1000;
 
         [Header("音频分轨（可选，无文件时静默模式）")]
         [SerializeField] private AudioClip melodyClip;
@@ -25,9 +23,9 @@ namespace StarPipe.Audio
         public SongData CurrentSongData => _songData;
 
         private double _dspStartTime;
-        private double _songTime;      // 原始dspTime差值（阶梯式）
-        private double _smoothTime;// 帧间插值后的平滑时间
-        private double _lastDspTime;   // 上一帧的dspTime，用于检测跳变
+        private double _songTime;
+        private double _smoothTime;
+        private double _lastDspTime;
         private double _pauseTime;
         private bool _isPlaying;
         private SongData _songData;
@@ -52,16 +50,14 @@ namespace StarPipe.Audio
             if (!_isPlaying) return;
             double currentDsp = AudioSettings.dspTime;
             _songTime = currentDsp - _dspStartTime;
-            // 检测dspTime是否发生了跳变（新的音频缓冲块到达）
             if (currentDsp != _lastDspTime)
             {
-                // dspTime更新了，同步到真实值
                 _smoothTime = _songTime;
                 _lastDspTime = currentDsp;
             }else
             {
-                // dspTime未更新（帧间），用deltaTime外推保持平滑
-                _smoothTime += Time.deltaTime;}
+                _smoothTime += Time.deltaTime;
+            }
         }
 
         private void InitStems()
@@ -88,18 +84,15 @@ namespace StarPipe.Audio
             if (!System.IO.File.Exists(fullPath))
             {
                 Debug.LogWarning($"[AudioConductor] MIDI文件不存在: {fullPath}，使用程序化生成");
-                _songData = MidiParser.GenerateTestNotes(minNoteCount);
+                _songData = MidiParser.GenerateTestNotes(500);
                 return;
             }
+            // 直接使用真实MIDI数据，不再因音符数不足而丢弃
             _songData = MidiParser.Parse(fullPath);
-            if (_songData.allNotes.Length < minNoteCount)
-            {
-                Debug.LogWarning($"[AudioConductor] MIDI仅{_songData.allNotes.Length}个音符，" +
-                                 $"不足{minNoteCount}，切换为程序化生成");
-                _songData = MidiParser.GenerateTestNotes(minNoteCount);
-            }
             Debug.Log($"[AudioConductor] 歌曲加载完成: {_songData.songName} | " +
-                      $"音符数={_songData.allNotes.Length} | 时长={_songData.totalDuration:F2}s");
+                      $"音符数={_songData.allNotes.Length} | 时长={_songData.totalDuration:F2}s | " +
+                      $"Melody={_songData.melodyNotes.Length} Drums={_songData.drumsNotes.Length} " +
+                      $"Bass={_songData.bassNotes.Length} Chords={_songData.chordsNotes.Length}");
         }
 
         public void Play()
@@ -126,7 +119,6 @@ namespace StarPipe.Audio
             _pauseTime = _smoothTime;
             foreach (var s in _stems)
                 if (s.isPlaying) s.Pause();
-            Debug.Log($"[AudioConductor] 暂停 | songTime={_smoothTime:F3}s");
             EventBus.OnGameStateChanged?.Invoke(GameState.Paused);
         }
 
@@ -135,10 +127,9 @@ namespace StarPipe.Audio
             if (_isPlaying) return;
             _dspStartTime = AudioSettings.dspTime - _pauseTime;
             _smoothTime = _pauseTime;
-            _lastDspTime = 0; // 强制下一帧重新同步
+            _lastDspTime = 0;
             _isPlaying = true;
             foreach (var s in _stems) s.UnPause();
-            Debug.Log($"[AudioConductor] 恢复 | songTime={_pauseTime:F3}s");
             EventBus.OnGameStateChanged?.Invoke(GameState.Playing);
         }
 
@@ -148,7 +139,6 @@ namespace StarPipe.Audio
             _songTime = 0;
             _smoothTime = 0;
             foreach (var s in _stems) s.Stop();
-            Debug.Log("[AudioConductor] 停止");
             EventBus.OnGameStateChanged?.Invoke(GameState.GameOver);
         }
 
