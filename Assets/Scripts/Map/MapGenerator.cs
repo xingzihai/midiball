@@ -11,8 +11,8 @@ namespace StarPipe.Map
     {
         [Header("对象池配置")]
         [SerializeField] private int poolSize = 1000;
-        // 发声器：宽(X=1.5), 矮(Y=0.8), 厚(Z=2.0防穿透)
-        [SerializeField] private Vector3 noteScale = new Vector3(1.5f, 0.8f, 2.0f);
+        // 发声器竖立：窄(X=0.8), 高(Y=1.5), 厚(Z=2.0防穿透)
+        [SerializeField] private Vector3 noteScale = new Vector3(0.8f, 1.5f, 2.0f);
 
         [Header("可视范围（Z轴前方多远开始显示）")]
         [SerializeField] private float spawnAhead = 80f;
@@ -89,8 +89,8 @@ namespace StarPipe.Map
                     var marker = _pool.Dequeue();
                     float rawX = _notes[_nextSpawnIndex].xPosition;
                     float wallX = CalcWallX(rawX);
-                    // Y=0.4让发声器底部贴地(高度0.8，中心在0.4)
-                    Vector3 pos = new Vector3(wallX, 0.4f, noteZ);
+                    // Y=0.75让发声器底部贴地(高度1.5，中心在0.75)
+                    Vector3 pos = new Vector3(wallX, 0.75f, noteZ);
                     marker.Reset(_nextSpawnIndex, pos, rawX > 0);
                     _activeMarkers.Add(marker);
                 }
