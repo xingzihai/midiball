@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using StarPipe.Core;
 using StarPipe.Audio;
+using StarPipe.Map;
 
 namespace StarPipe.Gameplay
 {
@@ -27,7 +28,8 @@ namespace StarPipe.Gameplay
         {
             EventBus.OnComboChanged += HandleComboChanged;
             EventBus.OnNoteHit += HandleNoteHit;
-            EventBus.OnNoteMiss += HandleNoteMiss;}
+            EventBus.OnNoteMiss += HandleNoteMiss;
+        }
 
         void OnDisable()
         {
@@ -48,9 +50,17 @@ namespace StarPipe.Gameplay
             if (_conductor?.CurrentSongData == null) return;
             _botParent = new GameObject("AutoBots").transform;
             _botParent.SetParent(transform);
+            // 确保BotEmitterGenerator存在（辅助发声器）
+            if (Object.FindObjectOfType<BotEmitterGenerator>() == null)
+            {
+                var go = new GameObject("BotEmitterGenerator");
+                go.AddComponent<BotEmitterGenerator>();
+                Debug.Log("[GameStateManager] 自动创建 BotEmitterGenerator");
+            }
             // 初始状态：所有伴奏轨道静音
             foreach (var t in UnlockOrder) _conductor.MuteTrack(t);
-            _initialized = true;Debug.Log("[GameStateManager] 初始化完成 | 伴奏轨道已全部静音");
+            _initialized = true;
+            Debug.Log("[GameStateManager] 初始化完成 | 伴奏轨道已全部静音");
         }
 
         // --- 事件回调 ---
@@ -63,7 +73,7 @@ namespace StarPipe.Gameplay
 
         private void HandleNoteHit(NoteType type, Vector3 pos)
         {
-            _consecutiveMisses = 0; // Hit重置连续Miss
+            _consecutiveMisses = 0;
             int multiplier = 1 + _unlockedTracks.Count;
             _score += 100 * multiplier;
             EventBus.OnScoreChanged?.Invoke(_score);
@@ -72,7 +82,7 @@ namespace StarPipe.Gameplay
         private void HandleNoteMiss(Vector3 pos)
         {
             _consecutiveMisses++;
-            if (_consecutiveMisses >= GameConstants.MISS_TO_PENALTY)TryPenalty();
+            if (_consecutiveMisses >= GameConstants.MISS_TO_PENALTY) TryPenalty();
         }
 
         // --- 召唤逻辑 ---
@@ -80,9 +90,8 @@ namespace StarPipe.Gameplay
         private void TrySummon()
         {
             if (_conductor == null) return;
-            // 找到下一个未解锁的轨道
             TrackType? next = GetNextUnlockTrack();
-            if (next == null) return; // 全部已解锁
+            if (next == null) return;
 
             TrackType track = next.Value;
             NoteData[] trackNotes = GetTrackNotes(track);
@@ -91,14 +100,12 @@ namespace StarPipe.Gameplay
                 Debug.LogWarning($"[GameStateManager] {track} 无音符数据，跳过召唤");
                 return;
             }
-            // 创建自动球
             var bot = AutoBotController.Create(track, trackNotes, _botParent);
             _autoBots[track] = bot;
             _unlockedTracks.Add(track);
-            // 解除音轨静音
             _conductor.UnmuteTrack(track);
             EventBus.OnTrackUnlocked?.Invoke(track);
-            Debug.Log($"[GameStateManager] ★ 召唤 {track} | 已解锁={_unlockedTracks.Count}/3");
+            Debug.Log($"[GameStateManager] ★ 召唤 {track} | 已解锁={_unlockedTracks.Count}/3 | 音符数={trackNotes.Length}");
         }
 
         // --- 惩罚逻辑 ---
@@ -106,7 +113,6 @@ namespace StarPipe.Gameplay
         private void TryPenalty()
         {
             if (_unlockedTracks.Count == 0) return;
-            // 逆序剥离：最后解锁的先被销毁
             TrackType last = _unlockedTracks[_unlockedTracks.Count - 1];
             if (_autoBots.TryGetValue(last, out var bot))
             {
@@ -116,7 +122,7 @@ namespace StarPipe.Gameplay
             _unlockedTracks.Remove(last);
             _conductor?.MuteTrack(last);
             EventBus.OnTrackLost?.Invoke(last);
-            _consecutiveMisses = 0; // 惩罚后重置
+            _consecutiveMisses = 0;
             Debug.Log($"[GameStateManager] ✖ 惩罚 {last} | 剩余={_unlockedTracks.Count}/3");
         }
 
